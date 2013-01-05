@@ -1,8 +1,10 @@
 #define LOG_NDEBUG 0
 #define LOG_TAG "screenrec"
 
-#include<stdio.h>
-#include<cutils/log.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <cutils/log.h>
 
 #include <media/mediarecorder.h>
 #include <gui/SurfaceTextureClient.h>
@@ -112,6 +114,9 @@ static EGLint eglContextAttribs[] = {
 EGLDisplay mEglDisplay = EGL_NO_DISPLAY;
 EGLSurface mEglSurface = EGL_NO_SURFACE;
 EGLContext mEglContext = EGL_NO_CONTEXT;
+EGLConfig mEglconfig;
+
+GLuint mProgram;
 
 int setupEgl() {
     ALOGV("setupEgl()");
@@ -129,14 +134,13 @@ int setupEgl() {
         return -1;
     }
 
-    EGLConfig config;
     EGLint numConfigs = 0;
-    eglChooseConfig(mEglDisplay, eglConfigAttribs, &config, 1, &numConfigs);
+    eglChooseConfig(mEglDisplay, eglConfigAttribs, &mEglconfig, 1, &numConfigs);
     if (eglGetError() != EGL_SUCCESS  || numConfigs < 1) {
         ALOGE("eglChooseConfig() failed");
         return -1;
     }
-    mEglContext = eglCreateContext(mEglDisplay, config, EGL_NO_CONTEXT, eglContextAttribs);
+    mEglContext = eglCreateContext(mEglDisplay, mEglconfig, EGL_NO_CONTEXT, eglContextAttribs);
     if (eglGetError() != EGL_SUCCESS || mEglContext == EGL_NO_CONTEXT) {
         ALOGE("eglGetDisplay() failed");
         return -1;
@@ -159,6 +163,59 @@ void tearDownEgl() {
     }
 }
 
+namespace android {
+
+sp<MediaRecorder> mr;
+sp<SurfaceTextureClient> mSTC;
+sp<ANativeWindow> mANW;
+
+// Set up the MediaRecorder which runs in the same process as mediaserver
+int setupMediaRecorder(int fd, int width, int height) {
+    mr = new MediaRecorder();
+    mr->setVideoSource(VIDEO_SOURCE_GRALLOC_BUFFER);
+    mr->setOutputFormat(OUTPUT_FORMAT_MPEG_4);
+    mr->setVideoEncoder(VIDEO_ENCODER_H264);
+    mr->setOutputFile(fd, 0, 0);
+    mr->setVideoSize(width, height);
+    mr->setVideoFrameRate(30);
+    mr->setParameters(String8("video-param-rotation-angle-degrees=90"));
+    mr->setParameters(String8("video-param-encoding-bitrate=1000000"));
+    mr->prepare();
+    ALOGV("Starting MediaRecorder...");
+    if (mr->start() != OK) {
+        ALOGE("Error starting MediaRecorder");
+        return -1;
+    }
+
+    sp<ISurfaceTexture> iST = mr->querySurfaceMediaSourceFromMediaServer();
+    mSTC = new SurfaceTextureClient(iST);
+    mANW = mSTC;
+
+    mEglSurface = eglCreateWindowSurface(mEglDisplay, mEglconfig, mANW.get(), NULL);
+    if (eglGetError() != EGL_SUCCESS || mEglSurface == EGL_NO_SURFACE) {
+        ALOGE("eglCreateWindowSurface() failed");
+        return -1;
+    };
+
+    eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface, mEglContext);
+    if (eglGetError() != EGL_SUCCESS ) {
+        ALOGE("eglMakeCurrent() failed");
+        return -1;
+    };
+    return 0;
+}
+
+void tearDownMediaRecorder() {
+    ALOGV("Stopping MediaRecorder...");
+    mr->stop();
+    ALOGV("Stopped");
+    mr.clear();
+    mSTC.clear();
+    mANW.clear();
+}
+
+}
+
 int main(int argc, char* argv[]) {
     printf("Screen Recorder\n");
     ALOGV("TEST");
@@ -166,5 +223,6 @@ int main(int argc, char* argv[]) {
     ALOGV("EGL initialized");
     tearDownEgl();
 }
+
 
 

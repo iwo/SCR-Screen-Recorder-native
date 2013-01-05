@@ -9,11 +9,14 @@ LOCAL_SRC_FILES := \
     screenrec.cpp \
 
 LOCAL_LDLIBS := \
-    -lGLESv2 \
 
 LOCAL_SHARED_LIBRARIES := \
     libcutils \
-	libEGL \
+    libEGL \
+    libmedia \
+    libutils \
+    libgui \
+    libGLESv2 \
 
 include $(BUILD_EXECUTABLE)
 
