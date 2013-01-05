@@ -96,9 +96,75 @@ GLuint createProgram(const char* pVertexSource, const char* pFragmentSource) {
     return program;
 }
 
+static EGLint eglConfigAttribs[] = {
+            EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+            EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+            EGL_RED_SIZE, 8,
+            EGL_GREEN_SIZE, 8,
+            EGL_BLUE_SIZE, 8,
+            EGL_RECORDABLE_ANDROID, EGL_TRUE,
+            EGL_NONE };
+
+static EGLint eglContextAttribs[] = {
+            EGL_CONTEXT_CLIENT_VERSION, 2,
+            EGL_NONE };
+
+EGLDisplay mEglDisplay = EGL_NO_DISPLAY;
+EGLSurface mEglSurface = EGL_NO_SURFACE;
+EGLContext mEglContext = EGL_NO_CONTEXT;
+
+int setupEgl() {
+    ALOGV("setupEgl()");
+    mEglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (eglGetError() != EGL_SUCCESS || mEglDisplay == EGL_NO_DISPLAY) {
+        ALOGE("eglGetDisplay() failed");
+        return -1;
+    }
+
+    EGLint majorVersion;
+    EGLint minorVersion;
+    eglInitialize(mEglDisplay, &majorVersion, &minorVersion);
+    if (eglGetError() != EGL_SUCCESS) {
+        ALOGE("eglInitialize() failed");
+        return -1;
+    }
+
+    EGLConfig config;
+    EGLint numConfigs = 0;
+    eglChooseConfig(mEglDisplay, eglConfigAttribs, &config, 1, &numConfigs);
+    if (eglGetError() != EGL_SUCCESS  || numConfigs < 1) {
+        ALOGE("eglChooseConfig() failed");
+        return -1;
+    }
+    mEglContext = eglCreateContext(mEglDisplay, config, EGL_NO_CONTEXT, eglContextAttribs);
+    if (eglGetError() != EGL_SUCCESS || mEglContext == EGL_NO_CONTEXT) {
+        ALOGE("eglGetDisplay() failed");
+        return -1;
+    }
+    return 0;
+}
+
+void tearDownEgl() {
+    if (mEglContext != EGL_NO_CONTEXT) {
+        eglDestroyContext(mEglDisplay, mEglContext);
+    }
+    if (mEglSurface != EGL_NO_SURFACE) {
+         eglDestroySurface(mEglDisplay, mEglSurface);
+    }
+    if (mEglDisplay != EGL_NO_DISPLAY) {
+        eglTerminate(mEglDisplay);
+    }
+    if (eglGetError() != EGL_SUCCESS) {
+        ALOGE("tearDownEgl() failed");
+    }
+}
+
 int main(int argc, char* argv[]) {
     printf("Screen Recorder\n");
     ALOGV("TEST");
+    setupEgl();
+    ALOGV("EGL initialized");
+    tearDownEgl();
 }
 
 
