@@ -33,11 +33,18 @@ static const char sFragmentShader[] =
     "  gl_FragColor.bgra = texture2D(textureSampler, tc); \n"
     "}\n";
 
-static void checkGlError(const char* op) {
+static void checkGlError(const char* op, bool critical) {
     for (GLint error = glGetError(); error; error
             = glGetError()) {
         ALOGI("after %s() glError (0x%x)\n", op, error);
+        if (critical) {
+            stop(-1, op);
+        }
     }
+}
+
+static void checkGlError(const char* op) {
+    checkGlError(op, false);
 }
 
 GLuint loadShader(GLenum shaderType, const char* pSource) {
@@ -123,6 +130,10 @@ EGLContext mEglContext = EGL_NO_CONTEXT;
 EGLConfig mEglconfig;
 
 GLuint mProgram;
+GLuint mvPositionHandle;
+GLuint mTexCoordHandle;
+GLuint mTexture;
+uint32_t *mPixels;
 
 int outputFd = -1;
 int videoWidth, videoHeight;
@@ -178,12 +189,52 @@ void tearDownEgl() {
     }
 }
 
+int getTexSize(int size) {
+    int texSize = 2;
+    while (texSize < size) {
+        texSize = texSize * 2;
+    }
+    return texSize;
+}
+
 void setupGl() {
     ALOGV("setup GL");
+
+    glDeleteTextures(1, &mTexture);
+    glGenTextures(1, &mTexture);
+    glBindTexture(GL_TEXTURE_2D, mTexture);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    checkGlError("texture setup");
+
+    texWidth = getTexSize(fbWidth);
+    texHeight = getTexSize(fbHeight);
+
+    mPixels = (uint32_t*)malloc(4 * texWidth * texHeight);
+    if (mPixels == (uint32_t*)NULL) {
+        stop(-1, "malloc failed");
+    }
+
     mProgram = createProgram(sVertexShader, sFragmentShader);
     if (!mProgram) {
         stop(-1, "Could not create GL program.");
     }
+
+    mvPositionHandle = glGetAttribLocation(mProgram, "vPosition");
+    mTexCoordHandle = glGetAttribLocation(mProgram, "texCoord");
+    checkGlError("glGetAttribLocation");
+
+    glTexImage2D(GL_TEXTURE_2D,
+                        0,
+                        GL_RGBA,
+                        texWidth,
+                        texHeight,
+                        0,
+                        GL_RGBA,
+                        GL_UNSIGNED_BYTE,
+                        mPixels);
+    checkGlError("glTexImage2D", true);
+
     glViewport(0, 0, videoWidth, videoHeight);
     checkGlError("glViewport");
 }
@@ -253,14 +304,6 @@ void tearDownMediaRecorder() {
 
 }
 
-int getTexSize(int size) {
-    int texSize = 2;
-    while (texSize < size) {
-        texSize = texSize * 2;
-    }
-    return texSize;
-}
-
 void setupFb() {
     ALOGV("Setting up FB mmap");
     const char* fbpath = "/dev/graphics/fb0";
@@ -299,9 +342,6 @@ void setupFb() {
         videoWidth = fbHeight;
         videoHeight = fbWidth;
     }
-
-    texWidth = getTexSize(fbWidth);
-    texHeight = getTexSize(fbHeight);
 }
 
 void stop(int error, const char* message) {
