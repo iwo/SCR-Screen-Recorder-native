@@ -6,6 +6,10 @@
 #include <unistd.h>
 #include <cutils/log.h>
 
+#include <linux/fb.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+
 #include <media/mediarecorder.h>
 #include <gui/SurfaceTextureClient.h>
 
@@ -121,8 +125,14 @@ EGLConfig mEglconfig;
 GLuint mProgram;
 
 int outputFd = -1;
-int fbFd = -1;
 int videoWidth, videoHeight;
+
+int fbFd = -1;
+struct fb_var_screeninfo fbInfo;
+void const* fbBase;
+int fbWidth, fbHeight;
+
+int texWidth, texHeight;
 
 void setupEgl() {
     ALOGV("setupEgl()");
@@ -241,6 +251,57 @@ void tearDownMediaRecorder() {
     }
 }
 
+}
+
+int getTexSize(int size) {
+    int texSize = 2;
+    while (texSize < size) {
+        texSize = texSize * 2;
+    }
+    return texSize;
+}
+
+void setupFb() {
+    ALOGV("Setting up FB mmap");
+    const char* fbpath = "/dev/graphics/fb0";
+    fbFd = open(fbpath, O_RDONLY);
+
+    if (fbFd < 0) {
+        stop(-1, "Error opening FB device");
+    }
+
+    if (ioctl(fbFd, FBIOGET_VSCREENINFO, &fbInfo) != 0) {
+        stop(-1, "FB ioctl failed");
+    }
+
+    int bytespp = fbInfo.bits_per_pixel / 8;
+
+    size_t mapsize, size;
+    size_t offset = (fbInfo.xoffset + fbInfo.yoffset * fbInfo.xres) * bytespp;
+    fbWidth = fbInfo.xres;
+    fbHeight = fbInfo.yres;
+    ALOGV("FB width: %d hieght: %d bytespp: %d", fbWidth, fbHeight, bytespp);
+
+    size = fbWidth * fbHeight * bytespp;
+
+    mapsize = offset + size;
+    void const* mapbase = MAP_FAILED;
+    mapbase = mmap(0, mapsize, PROT_READ, MAP_PRIVATE, fbFd, 0);
+    if (mapbase == MAP_FAILED) {
+        stop(-1, "mmap failed");
+    }
+    fbBase = (void const *)((char const *)mapbase + offset);
+
+    if (fbWidth > fbHeight) {
+        videoWidth = fbWidth;
+        videoHeight = fbHeight;
+    } else {
+        videoWidth = fbHeight;
+        videoHeight = fbWidth;
+    }
+
+    texWidth = getTexSize(fbWidth);
+    texHeight = getTexSize(fbHeight);
 }
 
 void stop(int error, const char* message) {
