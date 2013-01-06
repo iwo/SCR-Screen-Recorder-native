@@ -369,19 +369,42 @@ void stop(int error, const char* message) {
 void renderFrame() {
     glClearColor(0, 0.9, 0.7, 0.6);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, fbWidth, fbHeight, GL_RGBA, GL_UNSIGNED_BYTE, fbBase);
+    checkGlError("glTexSubImage2D");
+
+    GLfloat wFillPortion = fbWidth/(float)texWidth;
+    GLfloat hFillPortion = fbHeight/(float)texHeight;
+
+    GLfloat vertices[] =    {-1.0,-1.0,0.0,   1.0,-1.0,0.0,  -1.0,1.0,0.0,  1.0,1.0,0.0};
+    GLfloat coordinates[] = {0.0,0.0,0.0,   wFillPortion,0.0,0.0,  0.0,hFillPortion,0.0,  wFillPortion,hFillPortion,0.0 };
+
     glUseProgram(mProgram);
+    checkGlError("glUseProgram");
+
+    glVertexAttribPointer(mvPositionHandle, 3, GL_FLOAT, GL_FALSE, 0, vertices);
+    glEnableVertexAttribArray(mvPositionHandle);
+    glVertexAttribPointer(mTexCoordHandle, 3, GL_FLOAT, GL_FALSE, 0, coordinates);
+    glEnableVertexAttribArray(mTexCoordHandle);
+    checkGlError("vertexAttrib");
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    checkGlError("glDrawArrays");
+
     eglSwapBuffers(mEglDisplay, mEglSurface);
+    if (eglGetError() != EGL_SUCCESS) {
+        stop(-1, "eglSwapBuffers failed");
+    }
 }
 
 int main(int argc, char* argv[]) {
     printf("Screen Recorder started\n");
 
+    setupFb();
+
     if (argc < 2) {
         stop(-1, "Usage: screenrec <filename>");
     }
-
-    videoWidth = 800;
-    videoHeight = 480;
 
     outputFd = open(argv[1], O_RDWR | O_CREAT, 0744);
     if (outputFd < 0) {
@@ -394,7 +417,7 @@ int main(int argc, char* argv[]) {
 
     setupGl();
 
-    int frames = 1000;
+    int frames = 100;
     while (frames--) {
         renderFrame();
     }
