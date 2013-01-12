@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <cutils/log.h>
 
 #include <linux/fb.h>
@@ -16,6 +17,7 @@
 using namespace android;
 
 void stop(int error, const char* message);
+void stopMediaRecorder();
 
 static const char sVertexShader[] =
     "attribute vec4 vPosition;\n"
@@ -151,6 +153,11 @@ sp<MediaRecorder> mr = NULL;
 sp<SurfaceTextureClient> mSTC = NULL;
 sp<ANativeWindow> mANW = NULL;
 
+bool mrStopping = false;
+bool mrStopped = false;
+
+pthread_t mrStoppingThread;
+
 void setupEgl() {
     ALOGV("setupEgl()");
     mEglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
@@ -281,23 +288,13 @@ void setupMediaRecorder() {
 }
 
 void tearDownMediaRecorder() {
-    if (mEglSurface != EGL_NO_SURFACE) {
-        if (mEglDisplay != EGL_NO_DISPLAY) {
-            eglMakeCurrent(mEglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-        }
-        eglDestroySurface(mEglDisplay, mEglSurface);
-        mEglSurface = EGL_NO_SURFACE;
+    if (mr.get() != NULL) {
+        stopMediaRecorder();
     }
-    if (mr != NULL) {
-        ALOGV("Stopping MediaRecorder");
-        mr->stop();
-        ALOGV("Stopped");
-        mr.clear();
-    }
-    if (mSTC != NULL) {
+    if (mSTC.get() != NULL) {
         mSTC.clear();
     }
-    if (mANW != NULL) {
+    if (mANW.get() != NULL) {
         mANW.clear();
     }
 }
@@ -343,11 +340,14 @@ void setupFb() {
 }
 
 void stop(int error, const char* message) {
-    printf("%s - Stopping\n", message);
+    if (mrStopping && !mrStopped)
+        return;
+
+    printf("%s - stopping\n", message);
     if (error == 0) {
-        ALOGV("%s - Stopping\n", message);
+        ALOGV("%s - stopping\n", message);
     } else {
-        ALOGE("%s - Stopping\n", message);
+        ALOGE("%s - stopping\n", message);
     }
 
     tearDownMediaRecorder();
@@ -356,9 +356,11 @@ void stop(int error, const char* message) {
 
     if (outputFd >= 0) {
          close(outputFd);
+         outputFd = -1;
     }
     if (fbFd >= 0) {
         close(fbFd);
+        fbFd = -1;
     }
 
     exit(error);
@@ -389,9 +391,36 @@ void renderFrame() {
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     checkGlError("glDrawArrays");
 
-    eglSwapBuffers(mEglDisplay, mEglSurface);
+    if (!mrStopped) {
+        eglSwapBuffers(mEglDisplay, mEglSurface);
+    }
+
     if (eglGetError() != EGL_SUCCESS) {
         stop(-1, "eglSwapBuffers failed");
+    }
+}
+
+void* mrStoppingThreadStart(void* args) {
+    ALOGV("mrStoppingThreadStart");
+    if (mr.get() != NULL) {
+        ALOGV("Stopping MediaRecorder");
+        mr->stop();
+        ALOGV("Stopped");
+        mr.clear();
+    }
+    mrStopped = true;
+    return NULL;
+}
+
+void stopMediaRecorder() {
+    ALOGV("stopMediaRecorder");
+    if (mrStopping) {
+        return;
+    }
+    mrStopping = true;
+    if (pthread_create(&mrStoppingThread, NULL, &mrStoppingThreadStart, NULL) != 0){
+        printf("Can't create stopping thread, stopping synchronously");
+        mrStoppingThreadStart(NULL);
     }
 }
 
@@ -415,9 +444,14 @@ int main(int argc, char* argv[]) {
 
     setupGl();
 
-    int frames = 100;
-    while (frames--) {
+    int frames = 0;
+    while (!mrStopped) {
         renderFrame();
+        frames++;
+
+        if (frames == 300) {
+            stopMediaRecorder();
+        }
     }
 
     stop(0, "finished");
