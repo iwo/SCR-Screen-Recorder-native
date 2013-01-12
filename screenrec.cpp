@@ -13,6 +13,8 @@
 #include <media/mediarecorder.h>
 #include <gui/SurfaceTextureClient.h>
 
+using namespace android;
+
 void stop(int error, const char* message);
 
 static const char sVertexShader[] =
@@ -145,6 +147,10 @@ int fbWidth, fbHeight;
 
 int texWidth, texHeight;
 
+sp<MediaRecorder> mr = NULL;
+sp<SurfaceTextureClient> mSTC = NULL;
+sp<ANativeWindow> mANW = NULL;
+
 void setupEgl() {
     ALOGV("setupEgl()");
     mEglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
@@ -239,12 +245,6 @@ void setupGl() {
     checkGlError("glViewport");
 }
 
-namespace android {
-
-sp<MediaRecorder> mr = NULL;
-sp<SurfaceTextureClient> mSTC = NULL;
-sp<ANativeWindow> mANW = NULL;
-
 // Set up the MediaRecorder which runs in the same process as mediaserver
 void setupMediaRecorder() {
     mr = new MediaRecorder();
@@ -302,8 +302,6 @@ void tearDownMediaRecorder() {
     }
 }
 
-}
-
 void setupFb() {
     ALOGV("Setting up FB mmap");
     const char* fbpath = "/dev/graphics/fb0";
@@ -352,7 +350,7 @@ void stop(int error, const char* message) {
         ALOGE("%s - Stopping\n", message);
     }
 
-    android::tearDownMediaRecorder();
+    tearDownMediaRecorder();
 
     tearDownEgl();
 
@@ -413,7 +411,7 @@ int main(int argc, char* argv[]) {
 
     setupEgl();
 
-    android::setupMediaRecorder();
+    setupMediaRecorder();
 
     setupGl();
 
