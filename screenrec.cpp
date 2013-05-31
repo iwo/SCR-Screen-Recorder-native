@@ -7,12 +7,24 @@
 #include <pthread.h>
 #include <cutils/log.h>
 
+#include <media/mediarecorder.h>
+#include <gui/SurfaceTextureClient.h>
+
+//#define FB
+
+#ifdef FB
+
 #include <linux/fb.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
-#include <media/mediarecorder.h>
-#include <gui/SurfaceTextureClient.h>
+#else
+
+#include <binder/IMemory.h>
+#include <gui/SurfaceComposerClient.h>
+#include <gui/ISurfaceComposer.h>
+
+#endif //FB
 
 using namespace android;
 
@@ -34,7 +46,11 @@ static const char sFragmentShader[] =
     "varying vec2 tc; \n"
     "void main() {\n"
     //"  gl_FragColor = vec4(0.0, 1.0, 0, 1.0);\n"
+#ifdef FB
     "  gl_FragColor.bgra = texture2D(textureSampler, tc); \n"
+#else
+    "  gl_FragColor.rgba = texture2D(textureSampler, tc); \n"
+#endif //FB
     "}\n";
 
 static void checkGlError(const char* op, bool critical) {
@@ -142,11 +158,16 @@ uint32_t *mPixels;
 int outputFd = -1;
 int videoWidth, videoHeight;
 
+#ifdef FB
 int fbFd = -1;
 struct fb_var_screeninfo fbInfo;
-void const* fbBase;
-int fbWidth, fbHeight;
+#else
+ScreenshotClient screenshot;
+sp<IBinder> display;
+#endif FB
 
+void const* inputBase;
+int inputWidth, inputHeight;
 int texWidth, texHeight;
 
 sp<MediaRecorder> mr = NULL;
@@ -220,8 +241,8 @@ void setupGl() {
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     checkGlError("texture setup");
 
-    texWidth = getTexSize(fbWidth);
-    texHeight = getTexSize(fbHeight);
+    texWidth = getTexSize(inputWidth);
+    texHeight = getTexSize(inputHeight);
 
     mPixels = (uint32_t*)malloc(4 * texWidth * texHeight);
     if (mPixels == (uint32_t*)NULL) {
@@ -299,7 +320,8 @@ void tearDownMediaRecorder() {
     }
 }
 
-void setupFb() {
+void setupInput() {
+#ifdef FB
     ALOGV("Setting up FB mmap");
     const char* fbpath = "/dev/graphics/fb0";
     fbFd = open(fbpath, O_RDONLY);
@@ -316,11 +338,11 @@ void setupFb() {
 
     size_t mapsize, size;
     size_t offset = (fbInfo.xoffset + fbInfo.yoffset * fbInfo.xres) * bytespp;
-    fbWidth = fbInfo.xres;
-    fbHeight = fbInfo.yres;
-    ALOGV("FB width: %d hieght: %d bytespp: %d", fbWidth, fbHeight, bytespp);
+    inputWidth = fbInfo.xres;
+    inputHeight = fbInfo.yres;
+    ALOGV("FB width: %d hieght: %d bytespp: %d", inputWidth, inputHeight, bytespp);
 
-    size = fbWidth * fbHeight * bytespp;
+    size = inputWidth * inputHeight * bytespp;
 
     mapsize = offset + size;
     void const* mapbase = MAP_FAILED;
@@ -328,15 +350,40 @@ void setupFb() {
     if (mapbase == MAP_FAILED) {
         stop(-1, "mmap failed");
     }
-    fbBase = (void const *)((char const *)mapbase + offset);
-
-    if (fbWidth > fbHeight) {
-        videoWidth = fbWidth;
-        videoHeight = fbHeight;
-    } else {
-        videoWidth = fbHeight;
-        videoHeight = fbWidth;
+    inputBase = (void const *)((char const *)mapbase + offset);
+#else
+    display = SurfaceComposerClient::getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain);
+    if (display == NULL) {
+        stop(-1, "Can't access display");
     }
+    if (screenshot.update(display) != NO_ERROR) {
+        stop(-1, "screenshot.update() failed");
+    }
+    inputBase = screenshot.getPixels();
+    inputWidth = screenshot.getWidth();
+    inputHeight = screenshot.getHeight();
+    ALOGV("Screenshot width: %d, height: %d, format %d, size: %d", inputWidth, inputHeight, screenshot.getFormat(), screenshot.getSize());
+#endif // FB
+
+    if (inputWidth > inputHeight) {
+        videoWidth = inputWidth;
+        videoHeight = inputHeight;
+    } else {
+        videoWidth = inputHeight;
+        videoHeight = inputWidth;
+    }
+}
+
+
+void updateInput() {
+#ifdef FB
+    //TODO update framebuffer offset
+#else
+    if (screenshot.update(display) != NO_ERROR) {
+        stop(-1, "screenshot.update() failed");
+    }
+    inputBase = screenshot.getPixels();
+#endif
 }
 
 void stop(int error, const char* message) {
@@ -358,23 +405,26 @@ void stop(int error, const char* message) {
          close(outputFd);
          outputFd = -1;
     }
+#ifdef FB
     if (fbFd >= 0) {
         close(fbFd);
         fbFd = -1;
     }
-
+#endif //FB
     exit(error);
 }
 
 void renderFrame() {
+    updateInput();
+
     glClearColor(0, 0.9, 0.7, 0.6);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, fbWidth, fbHeight, GL_RGBA, GL_UNSIGNED_BYTE, fbBase);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, inputWidth, inputHeight, GL_RGBA, GL_UNSIGNED_BYTE, inputBase);
     checkGlError("glTexSubImage2D");
 
-    GLfloat wFillPortion = fbWidth/(float)texWidth;
-    GLfloat hFillPortion = fbHeight/(float)texHeight;
+    GLfloat wFillPortion = inputWidth/(float)texWidth;
+    GLfloat hFillPortion = inputHeight/(float)texHeight;
 
     GLfloat vertices[] =    {-1.0,-1.0,0.0,   1.0,-1.0,0.0,  -1.0,1.0,0.0,  1.0,1.0,0.0};
     GLfloat coordinates[] = {0.0,0.0,0.0,   wFillPortion,0.0,0.0,  0.0,hFillPortion,0.0,  wFillPortion,hFillPortion,0.0 };
@@ -427,8 +477,6 @@ void stopMediaRecorder() {
 int main(int argc, char* argv[]) {
     printf("Screen Recorder started\n");
 
-    setupFb();
-
     if (argc < 2) {
         stop(-1, "Usage: screenrec <filename>");
     }
@@ -437,6 +485,8 @@ int main(int argc, char* argv[]) {
     if (outputFd < 0) {
         stop(-1, "Could not open the output file");;
     }
+
+    setupInput();
 
     setupEgl();
 
