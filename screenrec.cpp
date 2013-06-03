@@ -227,7 +227,7 @@ void setupMediaRecorder() {
     mr->setVideoSize(videoWidth, videoHeight);
     mr->setVideoFrameRate(30);
     mr->setParameters(String8("video-param-rotation-angle-degrees=90"));
-    mr->setParameters(String8("video-param-encoding-bitrate=1000000"));
+    mr->setParameters(String8("video-param-encoding-bitrate=10000000"));
     mr->prepare();
 
     ALOGV("Starting MediaRecorder...");
