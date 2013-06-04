@@ -66,13 +66,13 @@ void setupOutput() {
     char outputName [512];
 
     if (fgets(outputName, 512, stdin) == NULL) {
-        stop(-1, "No output file specified");
+        stop(200, "No output file specified");
     }
     trimName(outputName);
 
     outputFd = open(outputName, O_RDWR | O_CREAT, 0744);
     if (outputFd < 0) {
-        stop(-1, "Could not open the output file");
+        stop(201, "Could not open the output file");
     }
 }
 
@@ -92,11 +92,11 @@ void setupInput() {
     fbFd = open(fbpath, O_RDONLY);
 
     if (fbFd < 0) {
-        stop(-1, "Error opening FB device");
+        stop(202, "Error opening FB device");
     }
 
     if (ioctl(fbFd, FBIOGET_VSCREENINFO, &fbInfo) != 0) {
-        stop(-1, "FB ioctl failed");
+        stop(203, "FB ioctl failed");
     }
 
     int bytespp = fbInfo.bits_per_pixel / 8;
@@ -113,16 +113,16 @@ void setupInput() {
     void const* mapbase = MAP_FAILED;
     mapbase = mmap(0, mapsize, PROT_READ, MAP_PRIVATE, fbFd, 0);
     if (mapbase == MAP_FAILED) {
-        stop(-1, "mmap failed");
+        stop(204, "mmap failed");
     }
     inputBase = (void const *)((char const *)mapbase + offset);
 #else
     display = SurfaceComposerClient::getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain);
     if (display == NULL) {
-        stop(-1, "Can't access display");
+        stop(205, "Can't access display");
     }
     if (screenshot.update(display) != NO_ERROR) {
-        stop(-1, "screenshot.update() failed");
+        stop(206, "screenshot.update() failed");
     }
     inputBase = screenshot.getPixels();
     inputWidth = screenshot.getWidth();
@@ -144,24 +144,24 @@ void setupEgl() {
     ALOGV("setupEgl()");
     mEglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (eglGetError() != EGL_SUCCESS || mEglDisplay == EGL_NO_DISPLAY) {
-        stop(-1, "eglGetDisplay() failed");
+        stop(207, "eglGetDisplay() failed");
     }
 
     EGLint majorVersion;
     EGLint minorVersion;
     eglInitialize(mEglDisplay, &majorVersion, &minorVersion);
     if (eglGetError() != EGL_SUCCESS) {
-        stop(-1, "eglInitialize() failed");
+        stop(208, "eglInitialize() failed");
     }
 
     EGLint numConfigs = 0;
     eglChooseConfig(mEglDisplay, eglConfigAttribs, &mEglconfig, 1, &numConfigs);
     if (eglGetError() != EGL_SUCCESS  || numConfigs < 1) {
-        stop(-1, "eglChooseConfig() failed");
+        stop(209, "eglChooseConfig() failed");
     }
     mEglContext = eglCreateContext(mEglDisplay, mEglconfig, EGL_NO_CONTEXT, eglContextAttribs);
     if (eglGetError() != EGL_SUCCESS || mEglContext == EGL_NO_CONTEXT) {
-        stop(-1, "eglGetDisplay() failed");
+        stop(210, "eglGetDisplay() failed");
     }
     ALOGV("EGL initialized");
 }
@@ -181,12 +181,12 @@ void setupGl() {
 
     mPixels = (uint32_t*)malloc(4 * texWidth * texHeight);
     if (mPixels == (uint32_t*)NULL) {
-        stop(-1, "malloc failed");
+        stop(211, "malloc failed");
     }
 
     mProgram = createProgram(sVertexShader, sFragmentShader);
     if (!mProgram) {
-        stop(-1, "Could not create GL program.");
+        stop(212, "Could not create GL program.");
     }
 
     mvPositionHandle = glGetAttribLocation(mProgram, "vPosition");
@@ -232,7 +232,7 @@ void setupMediaRecorder() {
 
     ALOGV("Starting MediaRecorder...");
     if (mr->start() != OK) {
-        stop(-1, "Error starting MediaRecorder");
+        stop(213, "Error starting MediaRecorder");
     } else {
         mrRunning = true;
     }
@@ -245,19 +245,19 @@ void setupMediaRecorder() {
 
     mEglSurface = eglCreateWindowSurface(mEglDisplay, mEglconfig, mANW.get(), NULL);
     if (eglGetError() != EGL_SUCCESS || mEglSurface == EGL_NO_SURFACE) {
-        stop(-1, "eglCreateWindowSurface() failed");
+        stop(214, "eglCreateWindowSurface() failed");
     };
 
     eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface, mEglContext);
     if (eglGetError() != EGL_SUCCESS ) {
-        stop(-1, "eglMakeCurrent() failed");
+        stop(215, "eglMakeCurrent() failed");
     };
 }
 
 
 void listenForCommand() {
     if (pthread_create(&commandThread, NULL, &commandThreadStart, NULL) != 0){
-        stop(-1, "Can't start command thread");
+        stop(216, "Can't start command thread");
     }
 }
 
@@ -308,7 +308,7 @@ void updateInput() {
     //TODO update framebuffer offset
 #else
     if (screenshot.update(display) != NO_ERROR) {
-        stop(-1, "screenshot.update() failed");
+        stop(217, "screenshot.update() failed");
     }
     inputBase = screenshot.getPixels();
 #endif
@@ -435,7 +435,7 @@ void checkGlError(const char* op, bool critical) {
             = glGetError()) {
         ALOGI("after %s() glError (0x%x)\n", op, error);
         if (critical) {
-            stop(-1, op);
+            stop(218, op);
         }
     }
 }
