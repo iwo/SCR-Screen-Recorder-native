@@ -33,12 +33,9 @@
 #else
 #define FRAME_RATE 15
 #endif //FB
+#define TARGET_FRAME_TIME 1000000 / FRAME_RATE
 
 using namespace android;
-
-// GL helpers
-GLuint loadShader(GLenum shaderType, const char* pSource);
-GLuint createProgram(const char* pVertexSource, const char* pFragmentSource);
 
 // EGL
 EGLDisplay mEglDisplay = EGL_NO_DISPLAY;
@@ -85,6 +82,8 @@ int errorCode = 0;
 pthread_t stoppingThread;
 pthread_t commandThread;
 
+// frame timers
+long uLastFrame = -1;
 
 int main(int argc, char* argv[]);
 void setupOutput();
@@ -104,14 +103,12 @@ void* stoppingThreadStart(void* args);
 void tearDownEgl();
 void closeOutput();
 void closeInput();
+void waitForNextFrame();
 
 // OpenGL helpers
 void checkGlError(const char* op, bool critical);
 void checkGlError(const char* op);
 GLuint loadShader(GLenum shaderType, const char* pSource);
 GLuint createProgram(const char* pVertexSource, const char* pFragmentSource);
-
-// time helpers
-int udiff(timespec start, timespec end);
 
 #endif

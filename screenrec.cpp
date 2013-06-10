@@ -58,14 +58,8 @@ int main(int argc, char* argv[]) {
     int targetFrameTime = 1000000 / FRAME_RATE;
 
     while (mrRunning && !finished) {
-        clock_gettime(CLOCK_MONOTONIC, &frameStart);
+        waitForNextFrame();
         renderFrame();
-        clock_gettime(CLOCK_MONOTONIC, &frameEnd);
-        int frameTime = udiff(frameStart, frameEnd);
-
-        if (frameTime < targetFrameTime) {
-            usleep(targetFrameTime - frameTime);
-        }
     }
 
     stop(0, "finished");
@@ -438,6 +432,28 @@ void closeInput() {
 #endif //FB
 }
 
+void waitForNextFrame() {
+    timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    long usec = now.tv_nsec / 1000;
+
+    if (uLastFrame == -1) {
+        uLastFrame = usec;
+        return;
+    }
+
+    long time = usec - uLastFrame;
+    if (time < 0) {
+        time += 1000000;
+    }
+
+    uLastFrame = usec;
+
+    if (time < TARGET_FRAME_TIME) {
+        usleep(time);
+    }
+}
+
 
 // OpenGL helpers
 
@@ -518,18 +534,3 @@ GLuint createProgram(const char* pVertexSource, const char* pFragmentSource) {
     }
     return program;
 }
-
-// time helpers
-
-int udiff(timespec start, timespec end)
-{
-	int nsec;
-
-	if ((end.tv_nsec-start.tv_nsec)<0) {
-		nsec = 1000000000+end.tv_nsec-start.tv_nsec;
-	} else {
-		nsec = end.tv_nsec-start.tv_nsec;
-	}
-	return nsec / 1000;
-}
-
