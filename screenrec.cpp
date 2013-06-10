@@ -53,8 +53,19 @@ int main(int argc, char* argv[]) {
     setupGl();
     listenForCommand();
 
+    timespec frameStart;
+    timespec frameEnd;
+    int targetFrameTime = 1000000 / FRAME_RATE;
+
     while (mrRunning && !finished) {
+        clock_gettime(CLOCK_MONOTONIC, &frameStart);
         renderFrame();
+        clock_gettime(CLOCK_MONOTONIC, &frameEnd);
+        int frameTime = udiff(frameStart, frameEnd);
+
+        if (frameTime < targetFrameTime) {
+            usleep(targetFrameTime - frameTime);
+        }
     }
 
     stop(0, "finished");
@@ -508,5 +519,17 @@ GLuint createProgram(const char* pVertexSource, const char* pFragmentSource) {
     return program;
 }
 
+// time helpers
 
+int udiff(timespec start, timespec end)
+{
+	int nsec;
+
+	if ((end.tv_nsec-start.tv_nsec)<0) {
+		nsec = 1000000000+end.tv_nsec-start.tv_nsec;
+	} else {
+		nsec = end.tv_nsec-start.tv_nsec;
+	}
+	return nsec / 1000;
+}
 

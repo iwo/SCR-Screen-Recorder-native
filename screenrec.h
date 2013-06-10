@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <cutils/log.h>
+#include <sys/time.h>
 
 #include <media/mediarecorder.h>
 #include <gui/SurfaceTextureClient.h>
@@ -25,6 +26,12 @@
 #include <gui/SurfaceComposerClient.h>
 #include <gui/ISurfaceComposer.h>
 
+#endif //FB
+
+#ifdef FB
+#define FRAME_RATE 30
+#else
+#define FRAME_RATE 15
 #endif //FB
 
 using namespace android;
@@ -103,5 +110,8 @@ void checkGlError(const char* op, bool critical);
 void checkGlError(const char* op);
 GLuint loadShader(GLenum shaderType, const char* pSource);
 GLuint createProgram(const char* pVertexSource, const char* pFragmentSource);
+
+// time helpers
+int udiff(timespec start, timespec end);
 
 #endif
