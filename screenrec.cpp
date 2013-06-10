@@ -49,6 +49,7 @@ int main(int argc, char* argv[]) {
     setupOutput();
     setupInput();
     setupEgl();
+    getRotation();
     setupMediaRecorder();
     setupGl();
     listenForCommand();
@@ -73,7 +74,7 @@ void setupOutput() {
     if (fgets(outputName, 512, stdin) == NULL) {
         stop(200, "No output file specified");
     }
-    trimName(outputName);
+    trim(outputName);
 
     outputFd = open(outputName, O_RDWR | O_CREAT, 0744);
     if (outputFd < 0) {
@@ -81,7 +82,7 @@ void setupOutput() {
     }
 }
 
-void trimName(char* str) {
+void trim(char* str) {
     while (*str) {
         if (*str == '\n') {
             *str = '\0';
@@ -221,6 +222,12 @@ int getTexSize(int size) {
     return texSize;
 }
 
+void getRotation() {
+    if (fgets(rotation, 8, stdin) == NULL) {
+        stop(219, "No rotation specified");
+    }
+    trim(rotation);
+}
 
 // Set up the MediaRecorder which runs in the same process as mediaserver
 void setupMediaRecorder() {
@@ -231,7 +238,7 @@ void setupMediaRecorder() {
     mr->setOutputFile(outputFd, 0, 0);
     mr->setVideoSize(videoWidth, videoHeight);
     mr->setVideoFrameRate(30);
-    mr->setParameters(String8("video-param-rotation-angle-degrees=90"));
+    mr->setParameters(String8("video-param-rotation-angle-degrees=") + String8(rotation));
     mr->setParameters(String8("video-param-encoding-bitrate=10000000"));
     mr->prepare();
 

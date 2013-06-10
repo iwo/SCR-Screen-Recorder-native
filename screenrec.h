@@ -66,6 +66,7 @@ sp<IBinder> display;
 void const* inputBase;
 int inputWidth, inputHeight;
 int texWidth, texHeight;
+char rotation [8];
 
 // MediaRecorder
 sp<MediaRecorder> mr = NULL;
@@ -87,11 +88,12 @@ long uLastFrame = -1;
 
 int main(int argc, char* argv[]);
 void setupOutput();
-void trimName(char* str);
+void trim(char* str);
 void setupInput();
 void setupEgl();
 void setupGl();
 int getTexSize(int size);
+void getRotation();
 void setupMediaRecorder();
 void* commandThreadStart(void* args);
 void listenForCommand();
