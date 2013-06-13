@@ -58,9 +58,18 @@ int main(int argc, char* argv[]) {
     timespec frameEnd;
     int targetFrameTime = 1000000 / FRAME_RATE;
 
+#ifdef FREE
+    int framesLeft = FRAME_RATE * 60 * 4;
+#endif
+
     while (mrRunning && !finished) {
         waitForNextFrame();
         renderFrame();
+#ifdef FREE
+        if (--framesLeft == 0) {
+            stop(220, "Maximum recording time reached");
+        }
+#endif
     }
 
     stop(0, "finished");

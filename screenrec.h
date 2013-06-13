@@ -14,6 +14,8 @@
 
 //#define FB
 
+#define FREE
+
 #ifdef FB
 
 #include <linux/fb.h>
