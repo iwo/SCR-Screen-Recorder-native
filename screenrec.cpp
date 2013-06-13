@@ -346,13 +346,13 @@ void stop(int error, const char* message) {
     } else {
         thread = "main";
     }
-    printf("stop requested %s %d from thread %s\n", message, error, thread);
+    printf("%d - stop requested from thread %s\n", error, thread);
     fflush(stdout);
 
     if (error == 0) {
         ALOGV("%s - stopping\n", message);
     } else {
-        ALOGE("%s - stopping\n", message);
+        ALOGE("%d - stopping\n", error);
     }
 
     if (stopping) {
