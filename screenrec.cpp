@@ -8,10 +8,11 @@ using namespace android;
 static const char sVertexShader[] =
     "attribute vec4 vPosition;\n"
     "attribute vec2 texCoord; \n"
+    "uniform mat4 vTransform;"
     "varying vec2 tc; \n"
     "void main() {\n"
     "  tc = texCoord;\n"
-    "  gl_Position = mat4(0,1,0,0,  1,0,0,0, 0,0,-1,0,  0,0,0,1) * vPosition;\n"
+    "  gl_Position = vTransform * vPosition;\n"
     "}\n";
 
 static const char sFragmentShader[] =
@@ -148,9 +149,11 @@ void setupInput() {
     if (inputWidth > inputHeight) {
         videoWidth = inputWidth;
         videoHeight = inputHeight;
+        transformMatrix = flipMatrix;
     } else {
         videoWidth = inputHeight;
         videoHeight = inputWidth;
+        transformMatrix = flipAndRotateMatrix;
     }
 }
 
@@ -181,6 +184,7 @@ void setupEgl() {
     ALOGV("EGL initialized");
 }
 
+
 void setupGl() {
     ALOGV("setup GL");
 
@@ -207,6 +211,9 @@ void setupGl() {
     mvPositionHandle = glGetAttribLocation(mProgram, "vPosition");
     mTexCoordHandle = glGetAttribLocation(mProgram, "texCoord");
     checkGlError("glGetAttribLocation");
+
+    mvTransformHandle = glGetUniformLocation(mProgram, "vTransform");
+    checkGlError("glGetUniformLocation");
 
     glTexImage2D(GL_TEXTURE_2D,
                         0,
@@ -291,6 +298,9 @@ void* commandThreadStart(void* args) {
 
 void renderFrame() {
     updateInput();
+
+    glUniformMatrix4fv(mvTransformHandle, 1, GL_FALSE, transformMatrix);
+    checkGlError("glUniformMatrix4fv");
 
     glClearColor(0, 0.9, 0.7, 0.6);
     glClear(GL_COLOR_BUFFER_BIT);

@@ -48,9 +48,24 @@ EGLConfig mEglconfig;
 // OpenGL
 GLuint mProgram;
 GLuint mvPositionHandle;
+GLuint mvTransformHandle;
 GLuint mTexCoordHandle;
 GLuint mTexture;
 uint32_t *mPixels;
+
+GLfloat *transformMatrix;
+
+GLfloat flipAndRotateMatrix[] = {
+    0.0, 1.0, 0.0, 0.0,
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 0.0,-1.0, 0.0,
+    0.0, 0.0, 0.0, 1};
+
+GLfloat flipMatrix[] = {
+    1.0, 0.0, 0.0, 0.0,
+    0.0,-1.0, 0.0, 0.0,
+    0.0, 0.0,-1.0, 0.0,
+    0.0, 0.0, 0.0, 1};
 
 // Output
 int outputFd = -1;
