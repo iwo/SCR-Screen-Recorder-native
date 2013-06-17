@@ -299,9 +299,6 @@ void* commandThreadStart(void* args) {
 void renderFrame() {
     updateInput();
 
-    glUniformMatrix4fv(mvTransformHandle, 1, GL_FALSE, transformMatrix);
-    checkGlError("glUniformMatrix4fv");
-
     glClearColor(0, 0.9, 0.7, 0.6);
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -316,6 +313,9 @@ void renderFrame() {
 
     glUseProgram(mProgram);
     checkGlError("glUseProgram");
+
+    glUniformMatrix4fv(mvTransformHandle, 1, GL_FALSE, transformMatrix);
+    checkGlError("glUniformMatrix4fv");
 
     glVertexAttribPointer(mvPositionHandle, 3, GL_FLOAT, GL_FALSE, 0, vertices);
     glEnableVertexAttribArray(mvPositionHandle);
