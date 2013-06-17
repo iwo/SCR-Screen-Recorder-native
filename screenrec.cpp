@@ -51,6 +51,7 @@ int main(int argc, char* argv[]) {
     setupInput();
     setupEgl();
     getRotation();
+    getAudioSetting();
     setupMediaRecorder();
     setupGl();
     listenForCommand();
@@ -245,12 +246,30 @@ void getRotation() {
     trim(rotation);
 }
 
+void getAudioSetting() {
+    char audio[8];
+    if (fgets(audio, 8, stdin) == NULL) {
+        stop(221, "No audio setting specified");
+    }
+    if (audio[0] == 'm') {
+        micAudio = true;
+    } else {
+        micAudio = false;
+    }
+}
+
 // Set up the MediaRecorder which runs in the same process as mediaserver
 void setupMediaRecorder() {
     mr = new MediaRecorder();
     mr->setVideoSource(VIDEO_SOURCE_GRALLOC_BUFFER);
+    if (micAudio) {
+        mr->setAudioSource(AUDIO_SOURCE_MIC);
+    }
     mr->setOutputFormat(OUTPUT_FORMAT_MPEG_4);
     mr->setVideoEncoder(VIDEO_ENCODER_H264);
+    if (micAudio) {
+        mr->setAudioEncoder(AUDIO_ENCODER_DEFAULT);
+    }
     mr->setOutputFile(outputFd, 0, 0);
     mr->setVideoSize(videoWidth, videoHeight);
     mr->setVideoFrameRate(30);

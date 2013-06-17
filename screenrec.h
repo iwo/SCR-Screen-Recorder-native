@@ -95,6 +95,7 @@ bool mrRunning = false;
 bool finished = false;
 bool stopping = false;
 int errorCode = 0;
+bool micAudio = false;
 
 // pthreads
 pthread_t stoppingThread;
@@ -111,6 +112,7 @@ void setupEgl();
 void setupGl();
 int getTexSize(int size);
 void getRotation();
+void getAudioSetting();
 void setupMediaRecorder();
 void* commandThreadStart(void* args);
 void listenForCommand();
