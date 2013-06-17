@@ -269,7 +269,7 @@ void setupMediaRecorder() {
     mr->setVideoEncoder(VIDEO_ENCODER_H264);
     if (micAudio) {
         mr->setAudioEncoder(AUDIO_ENCODER_AAC);
-        mr->setParameters(String8("audio-param-sampling-rate=48000"));
+        mr->setParameters(String8("audio-param-sampling-rate=16000"));
         mr->setParameters(String8("audio-param-encoding-bitrate=128000"));
     }
     mr->setOutputFile(outputFd, 0, 0);
