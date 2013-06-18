@@ -11,7 +11,7 @@ MY_SHARED_LIBRARIES := \
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := screenrec-free
-LOCAL_CXXFLAGS := -DFREE
+LOCAL_CFLAGS := -DSCR_FREE
 
 LOCAL_MODULE_TAGS := optional
 
@@ -26,7 +26,7 @@ include $(BUILD_EXECUTABLE)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := screenrec-fb-free
-LOCAL_CXXFLAGS := -DFREE -DFB
+LOCAL_CFLAGS := -DSCR_FREE -DSCR_FB
 
 LOCAL_MODULE_TAGS := optional
 
@@ -41,7 +41,7 @@ include $(BUILD_EXECUTABLE)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := screenrec-pro
-LOCAL_CXXFLAGS :=
+LOCAL_CFLAGS :=
 
 LOCAL_MODULE_TAGS := optional
 
@@ -55,7 +55,7 @@ include $(BUILD_EXECUTABLE)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := screenrec-fb-pro
-LOCAL_CXXFLAGS := -DFB
+LOCAL_CFLAGS := -DSCR_FB
 
 LOCAL_MODULE_TAGS := optional
 

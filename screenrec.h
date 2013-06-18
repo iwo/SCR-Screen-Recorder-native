@@ -12,7 +12,7 @@
 #include <media/mediarecorder.h>
 #include <gui/SurfaceTextureClient.h>
 
-#ifdef FB
+#ifdef SCR_FB
 
 #include <linux/fb.h>
 #include <sys/ioctl.h>
@@ -24,13 +24,13 @@
 #include <gui/SurfaceComposerClient.h>
 #include <gui/ISurfaceComposer.h>
 
-#endif //FB
+#endif //SCR_FB
 
-#ifdef FB
+#ifdef SCR_FB
 #define FRAME_RATE 30
 #else
 #define FRAME_RATE 15
-#endif //FB
+#endif //SCR_FB
 #define TARGET_FRAME_TIME 1000000 / FRAME_RATE
 
 using namespace android;
@@ -68,13 +68,13 @@ int outputFd = -1;
 int videoWidth, videoHeight;
 
 // input
-#ifdef FB
+#ifdef SCR_FB
 int fbFd = -1;
 struct fb_var_screeninfo fbInfo;
 #else
 ScreenshotClient screenshot;
 sp<IBinder> display;
-#endif //FB
+#endif //SCR_FB
 
 void const* inputBase;
 int inputWidth, inputHeight;

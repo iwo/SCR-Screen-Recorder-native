@@ -21,11 +21,11 @@ static const char sFragmentShader[] =
     "varying vec2 tc; \n"
     "void main() {\n"
     //"  gl_FragColor = vec4(0.0, 1.0, 0, 1.0);\n"
-#ifdef FB
+#ifdef SCR_FB
     "  gl_FragColor.bgra = texture2D(textureSampler, tc); \n"
 #else
     "  gl_FragColor.rgba = texture2D(textureSampler, tc); \n"
-#endif //FB
+#endif // SCR_FB
     "}\n";
 
 static EGLint eglConfigAttribs[] = {
@@ -60,14 +60,14 @@ int main(int argc, char* argv[]) {
     timespec frameEnd;
     int targetFrameTime = 1000000 / FRAME_RATE;
 
-#ifdef FREE
+#ifdef SCR_FREE
     int framesLeft = FRAME_RATE * 60 * 4;
 #endif
 
     while (mrRunning && !finished) {
         waitForNextFrame();
         renderFrame();
-#ifdef FREE
+#ifdef SCR_FREE
         if (--framesLeft == 0) {
             stop(220, "Maximum recording time reached");
         }
@@ -103,7 +103,7 @@ void trim(char* str) {
 }
 
 void setupInput() {
-#ifdef FB
+#ifdef SCR_FB
     ALOGV("Setting up FB mmap");
     const char* fbpath = "/dev/graphics/fb0";
     fbFd = open(fbpath, O_RDONLY);
@@ -145,7 +145,7 @@ void setupInput() {
     inputWidth = screenshot.getWidth();
     inputHeight = screenshot.getHeight();
     ALOGV("Screenshot width: %d, height: %d, format %d, size: %d", inputWidth, inputHeight, screenshot.getFormat(), screenshot.getSize());
-#endif // FB
+#endif // SCR_FB
 
     if (inputWidth > inputHeight) {
         videoWidth = inputWidth;
@@ -356,7 +356,7 @@ void renderFrame() {
 }
 
 void updateInput() {
-#ifdef FB
+#ifdef SCR_FB
     //TODO update framebuffer offset
 #else
     if (screenshot.update(display) != NO_ERROR) {
@@ -471,12 +471,12 @@ void closeOutput() {
 }
 
 void closeInput() {
-#ifdef FB
+#ifdef SCR_FB
     if (fbFd >= 0) {
         close(fbFd);
     fbFd = -1;
     }
-#endif //FB
+#endif // SCR_FB
 }
 
 void waitForNextFrame() {
