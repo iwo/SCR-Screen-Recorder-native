@@ -497,7 +497,7 @@ void waitForNextFrame() {
     uLastFrame = usec;
 
     if (time < TARGET_FRAME_TIME) {
-        usleep(time);
+        usleep(TARGET_FRAME_TIME - time);
     }
 }
 
