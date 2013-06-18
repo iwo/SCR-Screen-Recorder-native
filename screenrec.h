@@ -12,10 +12,6 @@
 #include <media/mediarecorder.h>
 #include <gui/SurfaceTextureClient.h>
 
-//#define FB
-
-#define FREE
-
 #ifdef FB
 
 #include <linux/fb.h>
