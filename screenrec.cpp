@@ -65,7 +65,9 @@ int main(int argc, char* argv[]) {
 #endif
 
     while (mrRunning && !finished) {
+#ifdef SCR_FB
         waitForNextFrame();
+#endif
         renderFrame();
 #ifdef SCR_FREE
         if (--framesLeft == 0) {
