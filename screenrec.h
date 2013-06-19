@@ -9,6 +9,7 @@
 #include <cutils/log.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <sys/prctl.h>
 
 #include <media/mediarecorder.h>
 #include <gui/SurfaceTextureClient.h>

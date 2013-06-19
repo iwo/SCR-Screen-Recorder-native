@@ -48,6 +48,7 @@ int main(int argc, char* argv[]) {
     printf("Screen Recorder started\n");
 
     signal(SIGPIPE, sigpipeHandler);
+    prctl(PR_SET_PDEATHSIG, SIGKILL);
 
     setupOutput();
     setupInput();
