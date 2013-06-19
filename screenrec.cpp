@@ -47,6 +47,8 @@ static EGLint eglContextAttribs[] = {
 int main(int argc, char* argv[]) {
     printf("Screen Recorder started\n");
 
+    signal(SIGPIPE, sigpipeHandler);
+
     setupOutput();
     setupInput();
     setupEgl();
@@ -501,6 +503,11 @@ void waitForNextFrame() {
     if (time < TARGET_FRAME_TIME) {
         usleep(TARGET_FRAME_TIME - time);
     }
+}
+
+void sigpipeHandler(int param) {
+    ALOGI("SIGPIPE received");
+    exit(222);
 }
 
 

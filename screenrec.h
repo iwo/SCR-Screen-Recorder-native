@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <cutils/log.h>
 #include <sys/time.h>
+#include <signal.h>
 
 #include <media/mediarecorder.h>
 #include <gui/SurfaceTextureClient.h>
@@ -121,6 +122,7 @@ void tearDownEgl();
 void closeOutput();
 void closeInput();
 void waitForNextFrame();
+void sigpipeHandler(int param);
 
 // OpenGL helpers
 void checkGlError(const char* op, bool critical);
