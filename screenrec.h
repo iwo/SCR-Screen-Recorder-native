@@ -75,7 +75,9 @@ int fbFd = -1;
 struct fb_var_screeninfo fbInfo;
 #else
 ScreenshotClient screenshot;
+#if SCR_SDK_VERSION >= 17
 sp<IBinder> display;
+#endif // SCR_SDK_VERSION
 #endif //SCR_FB
 
 void const* inputBase;

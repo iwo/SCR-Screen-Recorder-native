@@ -139,14 +139,13 @@ void setupInput() {
     }
     inputBase = (void const *)((char const *)mapbase + offset);
 #else
+    #if SCR_SDK_VERSION >= 17
     display = SurfaceComposerClient::getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain);
     if (display == NULL) {
         stop(205, "Can't access display");
     }
-    if (screenshot.update(display) != NO_ERROR) {
-        stop(206, "screenshot.update() failed");
-    }
-    inputBase = screenshot.getPixels();
+    #endif // SCR_SDK_VERSION
+    updateInput();
     inputWidth = screenshot.getWidth();
     inputHeight = screenshot.getHeight();
     ALOGV("Screenshot width: %d, height: %d, format %d, size: %d", inputWidth, inputHeight, screenshot.getFormat(), screenshot.getSize());
@@ -364,9 +363,15 @@ void updateInput() {
 #ifdef SCR_FB
     //TODO update framebuffer offset
 #else
+    #if SCR_SDK_VERSION >= 17
     if (screenshot.update(display) != NO_ERROR) {
         stop(217, "screenshot.update() failed");
     }
+    #else
+    if (screenshot.update() != NO_ERROR) {
+        stop(217, "screenshot.update() failed");
+    }
+    #endif // SCR_SDK_VERSION
     inputBase = screenshot.getPixels();
 #endif
 }
