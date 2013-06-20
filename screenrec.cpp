@@ -131,13 +131,12 @@ void setupInput() {
 
     size = inputWidth * inputHeight * bytespp;
 
-    mapsize = offset + size;
-    void const* mapbase = MAP_FAILED;
-    mapbase = mmap(0, mapsize, PROT_READ, MAP_PRIVATE, fbFd, 0);
-    if (mapbase == MAP_FAILED) {
+    mapsize = size * 4; // For triple buffering 3 should be enough, setting to 4 for padding
+    fbMapBase = mmap(0, mapsize, PROT_READ, MAP_SHARED, fbFd, 0);
+    if (fbMapBase == MAP_FAILED) {
         stop(204, "mmap failed");
     }
-    inputBase = (void const *)((char const *)mapbase + offset);
+    inputBase = (void const *)((char const *)fbMapBase + offset);
 #else
     #if SCR_SDK_VERSION >= 17
     display = SurfaceComposerClient::getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain);
@@ -361,7 +360,13 @@ void renderFrame() {
 
 void updateInput() {
 #ifdef SCR_FB
-    //TODO update framebuffer offset
+    // it's still flickering, maybe ioctl(fd, FBIO_WAITFORVSYNC, &crt); would help
+    if (ioctl(fbFd, FBIOGET_VSCREENINFO, &fbInfo) != 0) {
+        stop(223, "FB ioctl failed");
+    }
+    int bytespp = fbInfo.bits_per_pixel / 8;
+    size_t offset = (fbInfo.xoffset + fbInfo.yoffset * fbInfo.xres) * bytespp;
+    inputBase = (void const *)((char const *)fbMapBase + offset);
 #else
     #if SCR_SDK_VERSION >= 17
     if (screenshot.update(display) != NO_ERROR) {

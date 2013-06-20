@@ -73,6 +73,7 @@ int videoWidth, videoHeight;
 #ifdef SCR_FB
 int fbFd = -1;
 struct fb_var_screeninfo fbInfo;
+void const* fbMapBase = MAP_FAILED;
 #else
 ScreenshotClient screenshot;
 #if SCR_SDK_VERSION >= 17
