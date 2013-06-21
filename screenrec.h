@@ -11,6 +11,15 @@
 #include <signal.h>
 #include <sys/prctl.h>
 
+#if SCR_SDK_VERSION < 16
+#include <system/audio.h>
+#define ALOGV(...) LOGV(__VA_ARGS__)
+#define ALOGD(...) LOGD(__VA_ARGS__)
+#define ALOGI(...) LOGI(__VA_ARGS__)
+#define ALOGW(...) LOGW(__VA_ARGS__)
+#define ALOGE(...) LOGE(__VA_ARGS__)
+#endif
+
 #include <media/mediarecorder.h>
 #include <gui/SurfaceTextureClient.h>
 
@@ -23,9 +32,12 @@
 #else
 
 #include <binder/IMemory.h>
+#if SCR_SDK_VERSION >= 16
 #include <gui/SurfaceComposerClient.h>
 #include <gui/ISurfaceComposer.h>
-
+#else
+#include <surfaceflinger/SurfaceComposerClient.h>
+#endif // SCR_SDK_VERSION
 #endif //SCR_FB
 
 #ifdef SCR_FB
