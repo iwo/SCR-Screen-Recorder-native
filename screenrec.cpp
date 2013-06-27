@@ -52,12 +52,16 @@ int main(int argc, char* argv[]) {
 
     setupOutput();
     setupInput();
-    setupEgl();
+    if (useGl)
+        setupEgl();
     getRotation();
     getAudioSetting();
     setupMediaRecorder();
-    setupGl();
+    if (useGl)
+        setupGl();
     listenForCommand();
+
+    ALOGV("Setup finished. Starting rendering loop.");
 
     timespec frameStart;
     timespec frameEnd;
@@ -71,7 +75,11 @@ int main(int argc, char* argv[]) {
 #ifdef SCR_FB
         waitForNextFrame();
 #endif
-        renderFrame();
+        if (useGl) {
+            renderFrameGl();
+        } else {
+            renderFrame();
+        }
 #ifdef SCR_FREE
         if (--framesLeft == 0) {
             stop(220, "Maximum recording time reached");
@@ -153,11 +161,11 @@ void setupInput() {
     if (inputWidth > inputHeight) {
         videoWidth = inputWidth;
         videoHeight = inputHeight;
-        transformMatrix = flipMatrix;
+        rotateView = false;
     } else {
         videoWidth = inputHeight;
         videoHeight = inputWidth;
-        transformMatrix = flipAndRotateMatrix;
+        rotateView = true;
     }
 }
 
@@ -191,6 +199,18 @@ void setupEgl() {
 
 void setupGl() {
     ALOGV("setup GL");
+
+    mEglSurface = eglCreateWindowSurface(mEglDisplay, mEglconfig, mANW.get(), NULL);
+    if (eglGetError() != EGL_SUCCESS || mEglSurface == EGL_NO_SURFACE) {
+        stop(214, "eglCreateWindowSurface() failed");
+    };
+
+    eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface, mEglContext);
+    if (eglGetError() != EGL_SUCCESS ) {
+        stop(215, "eglMakeCurrent() failed");
+    };
+
+    transformMatrix = rotateView ? flipAndRotateMatrix : flipMatrix;
 
     glDeleteTextures(1, &mTexture);
     glGenTextures(1, &mTexture);
@@ -294,16 +314,6 @@ void setupMediaRecorder() {
     sp<ISurfaceTexture> iST = mr->querySurfaceMediaSourceFromMediaServer();
     mSTC = new SurfaceTextureClient(iST);
     mANW = mSTC;
-
-    mEglSurface = eglCreateWindowSurface(mEglDisplay, mEglconfig, mANW.get(), NULL);
-    if (eglGetError() != EGL_SUCCESS || mEglSurface == EGL_NO_SURFACE) {
-        stop(214, "eglCreateWindowSurface() failed");
-    };
-
-    eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface, mEglContext);
-    if (eglGetError() != EGL_SUCCESS ) {
-        stop(215, "eglMakeCurrent() failed");
-    };
 }
 
 
@@ -321,6 +331,51 @@ void* commandThreadStart(void* args) {
 }
 
 void renderFrame() {
+    updateInput();
+
+    ANativeWindowBuffer* anb;
+    if (native_window_set_buffers_user_dimensions(mANW.get(), videoWidth, videoHeight) != NO_ERROR) {
+        stop(241, "native_window_set_buffers_user_dimensions");
+    }
+
+    native_window_set_scaling_mode(mANW.get(), NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW);
+
+    if (native_window_dequeue_buffer_and_wait(mANW.get(), &anb) != NO_ERROR) {
+        if (stopping) return;
+        stop(242, "mANW->dequeueBuffer");
+    }
+
+    if (anb == NULL) {
+        if (stopping) return;
+        stop(243, "anb == NULL");
+    }
+
+    sp<GraphicBuffer> buf(new GraphicBuffer(anb, false));
+
+    // Fill the buffer
+    uint32_t* bufPixels = NULL;
+    uint32_t* screen = (uint32_t*) inputBase;
+    buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)(&bufPixels));
+
+    if (rotateView) {
+        for (int y = 0; y < videoHeight; y++) {
+            for (int x = 0; x < videoWidth; x++) {
+                bufPixels[y * videoWidth + x] = screen[x * videoHeight + videoHeight - y - 1];
+            }
+        }
+    } else {
+        memcpy(bufPixels, screen, videoWidth * videoHeight * 4);
+    }
+
+    buf->unlock();
+
+    if (mANW->queueBuffer(mANW.get(), buf->getNativeBuffer(), -1) != NO_ERROR) {
+        if (stopping) return;
+        stop(245, "mANW->queueBuffer");
+    }
+}
+
+void renderFrameGl() {
     updateInput();
 
     glClearColor(0, 0.9, 0.7, 0.6);
@@ -413,7 +468,8 @@ void stop(int error, const char* message) {
     errorCode = error;
 
     tearDownMediaRecorder();
-    tearDownEgl();
+    if (useGl)
+        tearDownEgl();
     closeOutput();
     closeInput();
 

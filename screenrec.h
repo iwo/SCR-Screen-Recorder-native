@@ -97,6 +97,7 @@ void const* inputBase;
 int inputWidth, inputHeight;
 int texWidth, texHeight;
 char rotation [8];
+bool rotateView = true;
 
 // MediaRecorder
 sp<MediaRecorder> mr = NULL;
@@ -109,6 +110,7 @@ bool finished = false;
 bool stopping = false;
 int errorCode = 0;
 bool micAudio = false;
+bool useGl = true;
 
 // pthreads
 pthread_t stoppingThread;
@@ -130,6 +132,7 @@ void setupMediaRecorder();
 void* commandThreadStart(void* args);
 void listenForCommand();
 void renderFrame();
+void renderFrameGl();
 void updateInput();
 void stop(int error, const char* message);
 void tearDownMediaRecorder();

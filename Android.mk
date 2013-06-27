@@ -6,6 +6,7 @@ MY_SHARED_LIBRARIES := \
     libmedia \
     libutils \
     libgui \
+    libui \
     libGLESv2 \
 
 include $(CLEAR_VARS)
