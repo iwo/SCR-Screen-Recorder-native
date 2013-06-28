@@ -112,6 +112,9 @@ int errorCode = 0;
 bool micAudio = false;
 bool useGl = true;
 
+int reqWidth = 0;
+int reqHeight = 0;
+
 // pthreads
 pthread_t stoppingThread;
 pthread_t commandThread;

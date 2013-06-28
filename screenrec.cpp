@@ -424,11 +424,11 @@ void updateInput() {
     inputBase = (void const *)((char const *)fbMapBase + offset);
 #else
     #if SCR_SDK_VERSION >= 17
-    if (screenshot.update(display) != NO_ERROR) {
+    if (screenshot.update(display, reqWidth, reqHeight) != NO_ERROR) {
         stop(217, "screenshot.update() failed");
     }
     #else
-    if (screenshot.update() != NO_ERROR) {
+    if (screenshot.update(reqWidth, reqHeight) != NO_ERROR) {
         stop(217, "screenshot.update() failed");
     }
     #endif // SCR_SDK_VERSION
