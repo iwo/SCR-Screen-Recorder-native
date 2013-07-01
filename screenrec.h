@@ -96,7 +96,6 @@ sp<IBinder> display;
 void const* inputBase;
 int inputWidth, inputHeight;
 int texWidth, texHeight;
-char rotation [8];
 bool rotateView = true;
 
 // MediaRecorder
@@ -109,11 +108,16 @@ bool mrRunning = false;
 bool finished = false;
 bool stopping = false;
 int errorCode = 0;
-bool micAudio = false;
-bool useGl = true;
 
+// input
+char outputName [512];
+char rotation [8];
+bool micAudio = false;
 int reqWidth = 0;
 int reqHeight = 0;
+bool useGl = true;
+
+
 
 // pthreads
 pthread_t stoppingThread;
@@ -131,6 +135,8 @@ void setupGl();
 int getTexSize(int size);
 void getRotation();
 void getAudioSetting();
+void getOutputName();
+void getResolution();
 void setupMediaRecorder();
 void* commandThreadStart(void* args);
 void listenForCommand();

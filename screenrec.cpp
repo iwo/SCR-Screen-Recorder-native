@@ -50,12 +50,15 @@ int main(int argc, char* argv[]) {
     signal(SIGPIPE, sigpipeHandler);
     prctl(PR_SET_PDEATHSIG, SIGKILL);
 
+    getOutputName();
+    getRotation();
+    getAudioSetting();
+    getResolution();
+
     setupOutput();
     setupInput();
     if (useGl)
         setupEgl();
-    getRotation();
-    getAudioSetting();
     setupMediaRecorder();
     if (useGl)
         setupGl();
@@ -92,14 +95,23 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-void setupOutput() {
-    char outputName [512];
-
+void getOutputName() {
     if (fgets(outputName, 512, stdin) == NULL) {
         stop(200, "No output file specified");
     }
     trim(outputName);
+}
 
+void getResolution() {
+    char width[16];
+    char height[16];
+    fgets(width, 16, stdin);
+    fgets(height, 16, stdin);
+    reqWidth = atoi(width);
+    reqHeight = atoi(height);
+}
+
+void setupOutput() {
     outputFd = open(outputName, O_RDWR | O_CREAT, 0744);
     if (outputFd < 0) {
         stop(201, "Could not open the output file");
