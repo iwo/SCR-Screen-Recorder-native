@@ -45,7 +45,8 @@ static EGLint eglContextAttribs[] = {
 
 
 int main(int argc, char* argv[]) {
-    printf("Screen Recorder started\n");
+    printf("ready\n");
+    fflush(stdout);
 
     signal(SIGPIPE, sigpipeHandler);
     prctl(PR_SET_PDEATHSIG, SIGKILL);
@@ -55,6 +56,8 @@ int main(int argc, char* argv[]) {
     getAudioSetting();
     getResolution();
 
+    printf("configured\n");
+    fflush(stdout);
     setupOutput();
     setupInput();
     if (useGl)
@@ -64,6 +67,8 @@ int main(int argc, char* argv[]) {
         setupGl();
     listenForCommand();
 
+    printf("recording\n");
+    fflush(stdout);
     ALOGV("Setup finished. Starting rendering loop.");
 
     timespec frameStart;
