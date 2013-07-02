@@ -398,13 +398,16 @@ void renderFrame() {
     uint32_t* screen = (uint32_t*) inputBase;
     buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)(&bufPixels));
 
+    int stride = buf->stride;
+
     if (rotateView) {
         for (int y = 0; y < videoHeight; y++) {
             for (int x = 0; x < videoWidth; x++) {
-                bufPixels[y * videoWidth + x] = screen[x * videoHeight + videoHeight - y - 1];
+                bufPixels[y * stride + x] = screen[x * videoHeight + videoHeight - y - 1];
             }
         }
     } else {
+        //TODO: copy by row if buf->width != buf->stride
         memcpy(bufPixels, screen, videoWidth * videoHeight * 4);
     }
 
