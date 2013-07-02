@@ -45,7 +45,6 @@
 #else
 #define FRAME_RATE 15
 #endif //SCR_FB
-#define TARGET_FRAME_TIME 1000000 / FRAME_RATE
 
 using namespace android;
 
@@ -108,6 +107,7 @@ bool mrRunning = false;
 bool finished = false;
 bool stopping = false;
 int errorCode = 0;
+int targetFrameTime = 0;
 
 // input
 char outputName [512];
@@ -115,6 +115,8 @@ char rotation [8];
 bool micAudio = false;
 int reqWidth = 0;
 int reqHeight = 0;
+int frameRate = 0;
+bool restrictFrameRate = true;
 bool useGl = true;
 
 
@@ -137,6 +139,7 @@ void getRotation();
 void getAudioSetting();
 void getOutputName();
 void getResolution();
+void getFrameRate();
 void setupMediaRecorder();
 void* commandThreadStart(void* args);
 void listenForCommand();

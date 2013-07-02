@@ -55,6 +55,7 @@ int main(int argc, char* argv[]) {
     getRotation();
     getAudioSetting();
     getResolution();
+    getFrameRate();
 
     printf("configured\n");
     fflush(stdout);
@@ -73,16 +74,17 @@ int main(int argc, char* argv[]) {
 
     timespec frameStart;
     timespec frameEnd;
-    int targetFrameTime = 1000000 / FRAME_RATE;
+    targetFrameTime = 1000000 / frameRate;
 
 #ifdef SCR_FREE
-    int framesLeft = FRAME_RATE * 60 * 4;
+    int framesLeft = frameRate * 60 * 4;
 #endif
 
     while (mrRunning && !finished) {
-#ifdef SCR_FB
-        waitForNextFrame();
-#endif
+        if (restrictFrameRate) {
+            waitForNextFrame();
+        }
+
         if (useGl) {
             renderFrameGl();
         } else {
@@ -114,6 +116,18 @@ void getResolution() {
     fgets(height, 16, stdin);
     reqWidth = atoi(width);
     reqHeight = atoi(height);
+}
+
+void getFrameRate() {
+    char fps[16];
+    fgets(fps, 16, stdin);
+    frameRate = atoi(fps);
+    if (frameRate == -1) {
+        restrictFrameRate = false;
+        frameRate = FRAME_RATE;
+    } else if (frameRate <= 0 || frameRate > 100) {
+        frameRate = FRAME_RATE;
+    }
 }
 
 void setupOutput() {
@@ -314,7 +328,7 @@ void setupMediaRecorder() {
     }
     mr->setOutputFile(outputFd, 0, 0);
     mr->setVideoSize(videoWidth, videoHeight);
-    mr->setVideoFrameRate(30);
+    mr->setVideoFrameRate(frameRate);
     mr->setParameters(String8("video-param-rotation-angle-degrees=") + String8(rotation));
     mr->setParameters(String8("video-param-encoding-bitrate=10000000"));
     mr->prepare();
@@ -584,8 +598,8 @@ void waitForNextFrame() {
 
     uLastFrame = usec;
 
-    if (time < TARGET_FRAME_TIME) {
-        usleep(TARGET_FRAME_TIME - time);
+    if (time < targetFrameTime) {
+        usleep(targetFrameTime - time);
     }
 }
 
