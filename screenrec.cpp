@@ -56,6 +56,7 @@ int main(int argc, char* argv[]) {
     getAudioSetting();
     getResolution();
     getFrameRate();
+    getUseGl();
 
     printf("configured\n");
     fflush(stdout);
@@ -127,6 +128,15 @@ void getFrameRate() {
         frameRate = FRAME_RATE;
     } else if (frameRate <= 0 || frameRate > 100) {
         frameRate = FRAME_RATE;
+    }
+}
+
+void getUseGl() {
+    char mode[8];
+    if (fgets(mode, 8, stdin) != NULL) {
+        if (mode[0] == 'C') { //CPU
+            useGl = false;
+        }
     }
 }
 

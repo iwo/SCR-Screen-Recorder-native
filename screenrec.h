@@ -140,6 +140,7 @@ void getAudioSetting();
 void getOutputName();
 void getResolution();
 void getFrameRate();
+void getUseGl();
 void setupMediaRecorder();
 void* commandThreadStart(void* args);
 void listenForCommand();
