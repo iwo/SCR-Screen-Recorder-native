@@ -161,6 +161,7 @@ void* commandThreadStart(void* args);
 void listenForCommand();
 void renderFrame();
 void renderFrameGl();
+void renderFrameCPU();
 void updateInput();
 void stop(int error, const char* message);
 void tearDownMediaRecorder();

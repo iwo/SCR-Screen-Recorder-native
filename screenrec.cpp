@@ -82,11 +82,7 @@ int main(int argc, char* argv[]) {
             waitForNextFrame();
         }
 
-        if (useGl) {
-            renderFrameGl();
-        } else {
-            renderFrame();
-        }
+        renderFrame();
 #ifdef SCR_FREE
         if (--framesLeft == 0) {
             stop(220, "Maximum recording time reached");
@@ -390,6 +386,14 @@ void* commandThreadStart(void* args) {
 }
 
 void renderFrame() {
+    if (useGl) {
+        renderFrameGl();
+    } else {
+        renderFrameCPU();
+    }
+}
+
+void renderFrameCPU() {
     updateInput();
 
     ANativeWindowBuffer* anb;
