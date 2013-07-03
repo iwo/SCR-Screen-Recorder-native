@@ -156,6 +156,7 @@ void getOutputName();
 void getResolution();
 void getFrameRate();
 void getUseGl();
+void getColorFormat();
 void setupMediaRecorder();
 void* commandThreadStart(void* args);
 void listenForCommand();

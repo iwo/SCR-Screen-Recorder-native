@@ -53,6 +53,7 @@ int main(int argc, char* argv[]) {
     getResolution();
     getFrameRate();
     getUseGl();
+    getColorFormat();
 
     printf("configured\n");
     fflush(stdout);
@@ -132,6 +133,16 @@ void getUseGl() {
     }
 }
 
+void getColorFormat() {
+    colorMatrix = rgbaMatrix;
+    char mode[8];
+    if (fgets(mode, 8, stdin) != NULL) {
+        if (mode[0] == 'B') { //BGRA
+            colorMatrix = bgraMatrix;
+        }
+    }
+}
+
 void setupOutput() {
     outputFd = open(outputName, O_RDWR | O_CREAT, 0744);
     if (outputFd < 0) {
@@ -178,7 +189,6 @@ void setupInput() {
         stop(204, "mmap failed");
     }
     inputBase = (void const *)((char const *)fbMapBase + offset);
-    colorMatrix = bgraMatrix; //TODO: check color format
 #else
     #if SCR_SDK_VERSION >= 17
     display = SurfaceComposerClient::getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain);
@@ -190,12 +200,6 @@ void setupInput() {
     inputWidth = screenshot.getWidth();
     inputHeight = screenshot.getHeight();
     ALOGV("Screenshot width: %d, height: %d, format %d, size: %d", inputWidth, inputHeight, screenshot.getFormat(), screenshot.getSize());
-
-    if (screenshot.getFormat() == PIXEL_FORMAT_BGRA_8888) {
-        colorMatrix = bgraMatrix;
-    } else {
-        colorMatrix = rgbaMatrix;
-    }
 
 #endif // SCR_FB
 
