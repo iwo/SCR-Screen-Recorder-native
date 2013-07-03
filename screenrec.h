@@ -58,6 +58,7 @@ EGLConfig mEglconfig;
 GLuint mProgram;
 GLuint mvPositionHandle;
 GLuint mvTransformHandle;
+GLuint mColorTransformHandle;
 GLuint mTexCoordHandle;
 GLuint mTexture;
 uint32_t *mPixels;
@@ -75,6 +76,20 @@ GLfloat flipMatrix[] = {
     0.0,-1.0, 0.0, 0.0,
     0.0, 0.0,-1.0, 0.0,
     0.0, 0.0, 0.0, 1};
+
+GLfloat *colorMatrix;
+
+GLfloat rgbaMatrix[] = {
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 0.0,
+    0.0, 0.0, 0.0, 1.0};
+
+GLfloat bgraMatrix[] = {
+    0.0, 0.0, 1.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 1.0};
 
 // Output
 int outputFd = -1;

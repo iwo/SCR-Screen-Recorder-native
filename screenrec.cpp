@@ -18,14 +18,10 @@ static const char sVertexShader[] =
 static const char sFragmentShader[] =
     "precision mediump float;\n"
     "uniform sampler2D textureSampler; \n"
+    "uniform mat4 colorTransform;"
     "varying vec2 tc; \n"
     "void main() {\n"
-    //"  gl_FragColor = vec4(0.0, 1.0, 0, 1.0);\n"
-#ifdef SCR_FB
-    "  gl_FragColor.bgra = texture2D(textureSampler, tc); \n"
-#else
-    "  gl_FragColor.rgba = texture2D(textureSampler, tc); \n"
-#endif // SCR_FB
+    "  gl_FragColor.rgba = colorTransform * texture2D(textureSampler, tc); \n"
     "}\n";
 
 static EGLint eglConfigAttribs[] = {
@@ -186,6 +182,7 @@ void setupInput() {
         stop(204, "mmap failed");
     }
     inputBase = (void const *)((char const *)fbMapBase + offset);
+    colorMatrix = bgraMatrix; //TODO: check color format
 #else
     #if SCR_SDK_VERSION >= 17
     display = SurfaceComposerClient::getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain);
@@ -197,6 +194,13 @@ void setupInput() {
     inputWidth = screenshot.getWidth();
     inputHeight = screenshot.getHeight();
     ALOGV("Screenshot width: %d, height: %d, format %d, size: %d", inputWidth, inputHeight, screenshot.getFormat(), screenshot.getSize());
+
+    if (screenshot.getFormat() == PIXEL_FORMAT_BGRA_8888) {
+        colorMatrix = bgraMatrix;
+    } else {
+        colorMatrix = rgbaMatrix;
+    }
+
 #endif // SCR_FB
 
     if (inputWidth > inputHeight) {
@@ -278,6 +282,9 @@ void setupGl() {
     checkGlError("glGetAttribLocation");
 
     mvTransformHandle = glGetUniformLocation(mProgram, "vTransform");
+    checkGlError("glGetUniformLocation");
+
+    mColorTransformHandle = glGetUniformLocation(mProgram, "colorTransform");
     checkGlError("glGetUniformLocation");
 
     glTexImage2D(GL_TEXTURE_2D,
@@ -438,6 +445,9 @@ void renderFrameGl() {
     checkGlError("glUseProgram");
 
     glUniformMatrix4fv(mvTransformHandle, 1, GL_FALSE, transformMatrix);
+    checkGlError("glUniformMatrix4fv");
+
+    glUniformMatrix4fv(mColorTransformHandle, 1, GL_FALSE, colorMatrix);
     checkGlError("glUniformMatrix4fv");
 
     glVertexAttribPointer(mvPositionHandle, 3, GL_FLOAT, GL_FALSE, 0, vertices);
