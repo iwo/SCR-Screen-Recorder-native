@@ -362,6 +362,17 @@ void setupMediaRecorder() {
     sp<ISurfaceTexture> iST = mr->querySurfaceMediaSourceFromMediaServer();
     mSTC = new SurfaceTextureClient(iST);
     mANW = mSTC;
+
+    #if SCR_SDK_VERSION < 17
+    if (!useGl) {
+        if (native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU) != NO_ERROR) {
+            stop(224, "native_window_api_connect");
+        }
+        if (native_window_set_buffers_format(mANW.get(), PIXEL_FORMAT_RGBA_8888) != NO_ERROR) {
+            stop(225, "native_window_set_buffers_format");
+        }
+    }
+    #endif
 }
 
 
@@ -382,13 +393,29 @@ void renderFrame() {
     updateInput();
 
     ANativeWindowBuffer* anb;
-    if (native_window_set_buffers_user_dimensions(mANW.get(), videoWidth, videoHeight) != NO_ERROR) {
+    int rv;
+
+    #if SCR_SDK_VERSION > 16
+    rv = native_window_set_buffers_user_dimensions(mANW.get(), videoWidth, videoHeight);
+    #else
+    rv = native_window_set_buffers_dimensions(mANW.get(), videoWidth, videoHeight);
+    #endif
+
+    if (rv != NO_ERROR) {
         stop(241, "native_window_set_buffers_user_dimensions");
     }
 
+    #if SCR_SDK_VERSION > 16
     native_window_set_scaling_mode(mANW.get(), NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW);
+    #endif
 
-    if (native_window_dequeue_buffer_and_wait(mANW.get(), &anb) != NO_ERROR) {
+    #if SCR_SDK_VERSION > 16
+    rv = native_window_dequeue_buffer_and_wait(mANW.get(), &anb);
+    #else
+    rv = mANW->dequeueBuffer(mANW.get(), &anb);
+    #endif
+
+    if (rv != NO_ERROR) {
         if (stopping) return;
         stop(242, "mANW->dequeueBuffer");
     }
@@ -399,6 +426,10 @@ void renderFrame() {
     }
 
     sp<GraphicBuffer> buf(new GraphicBuffer(anb, false));
+
+    #if SCR_SDK_VERSION < 17
+    mANW->lockBuffer(mANW.get(), buf->getNativeBuffer());
+    #endif
 
     // Fill the buffer
     uint32_t* bufPixels = NULL;
@@ -420,7 +451,13 @@ void renderFrame() {
 
     buf->unlock();
 
-    if (mANW->queueBuffer(mANW.get(), buf->getNativeBuffer(), -1) != NO_ERROR) {
+    #if SCR_SDK_VERSION > 16
+    rv = mANW->queueBuffer(mANW.get(), buf->getNativeBuffer(), -1);
+    #else
+    rv = mANW->queueBuffer(mANW.get(), buf->getNativeBuffer());
+    #endif
+
+    if (rv != NO_ERROR) {
         if (stopping) return;
         stop(245, "mANW->queueBuffer");
     }
@@ -552,6 +589,11 @@ void tearDownMediaRecorder() {
         mSTC.clear();
     }
     if (mANW.get() != NULL) {
+        #if SCR_SDK_VERSION < 17
+        if (!useGl) {
+            native_window_api_disconnect(mANW.get(), NATIVE_WINDOW_API_CPU);
+        }
+        #endif
         mANW.clear();
     }
 }
