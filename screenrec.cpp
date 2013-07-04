@@ -76,6 +76,9 @@ int main(int argc, char* argv[]) {
 
 #ifdef SCR_FREE
     int framesLeft = frameRate * 60 * 4;
+    if (videoHeight <= 480 && !restrictFrameRate) {
+        framesLeft = framesLeft * 4;
+    }
 #endif
 
     while (mrRunning && !finished) {
