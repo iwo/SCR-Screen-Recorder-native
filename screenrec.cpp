@@ -549,8 +549,8 @@ void stop(int error, const char* message) {
     } else {
         thread = "main";
     }
-    printf("%d - stop requested from thread %s\n", error, thread);
-    fflush(stdout);
+    fprintf(stderr, "%d - stop requested from thread %s\n", error, thread);
+    fflush(stderr);
 
     if (error == 0) {
         ALOGV("%s - stopping\n", message);
@@ -586,7 +586,7 @@ void tearDownMediaRecorder() {
         if (mrRunning) {
             // MediaRecorder needs to be stopped from separate thread as couple frames may need to be rendered before mr->stop() returns.
             if (pthread_create(&stoppingThread, NULL, &stoppingThreadStart, NULL) != 0){
-                printf("Can't create stopping thread, stopping synchronously");
+                ALOGE("Can't create stopping thread, stopping synchronously");
                 stoppingThreadStart(NULL);
             }
             while (mrRunning) {
