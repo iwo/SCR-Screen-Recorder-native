@@ -59,6 +59,7 @@ int main(int argc, char* argv[]) {
     fflush(stdout);
     setupOutput();
     setupInput();
+    adjustRotation();
     if (useGl)
         setupEgl();
     setupMediaRecorder();
@@ -198,7 +199,21 @@ void setupInput() {
     if (display == NULL) {
         stop(205, "Can't access display");
     }
+    if (screenshot.update(display) != NO_ERROR) {
+        stop(217, "screenshot.update() failed");
+    }
+    #else
+    if (screenshot.update() != NO_ERROR) {
+        stop(217, "screenshot.update() failed");
+    }
     #endif // SCR_SDK_VERSION
+
+    if ((screenshot.getWidth() < screenshot.getHeight()) != (reqWidth < reqHeight)) {
+        ALOGI("swapping dimensions");
+        int tmp = reqWidth;
+        reqWidth = reqHeight;
+        reqHeight = tmp;
+    }
     updateInput();
     inputWidth = screenshot.getWidth();
     inputHeight = screenshot.getHeight();
@@ -217,6 +232,11 @@ void setupInput() {
     }
 }
 
+void adjustRotation() {
+    if (rotateView) {
+        rotation = (rotation + 90) % 360;
+    }
+}
 
 void setupEgl() {
     ALOGV("setupEgl()");
@@ -314,10 +334,11 @@ int getTexSize(int size) {
 }
 
 void getRotation() {
-    if (fgets(rotation, 8, stdin) == NULL) {
+    char rot[8];
+    if (fgets(rot, 8, stdin) == NULL) {
         stop(219, "No rotation specified");
     }
-    trim(rotation);
+    rotation = atoi(rot);
 }
 
 void getAudioSetting() {
@@ -349,7 +370,9 @@ void setupMediaRecorder() {
     mr->setOutputFile(outputFd, 0, 0);
     mr->setVideoSize(videoWidth, videoHeight);
     mr->setVideoFrameRate(frameRate);
-    mr->setParameters(String8("video-param-rotation-angle-degrees=") + String8(rotation));
+    char rotationParam[64];
+    sprintf(rotationParam, "video-param-rotation-angle-degrees=%d", rotation);
+    mr->setParameters(String8(rotationParam));
     mr->setParameters(String8("video-param-encoding-bitrate=10000000"));
     mr->prepare();
 
@@ -527,23 +550,11 @@ void updateInput() {
 #else
     #if SCR_SDK_VERSION >= 17
     if (screenshot.update(display, reqWidth, reqHeight) != NO_ERROR) {
-        ALOGE("screenshot.update() failed, swapping dimensions");
-        int tmp = reqWidth;
-        reqWidth = reqHeight;
-        reqHeight = tmp;
-        if (screenshot.update(display, reqWidth, reqHeight) != NO_ERROR) {
-            stop(217, "screenshot.update() failed");
-        }
+        stop(217, "screenshot.update() failed");
     }
     #else
     if (screenshot.update(reqWidth, reqHeight) != NO_ERROR) {
-        ALOGE("screenshot.update() failed, swapping dimensions");
-        int tmp = reqWidth;
-        reqWidth = reqHeight;
-        reqHeight = tmp;
-        if (screenshot.update(reqWidth, reqHeight) != NO_ERROR) {
-            stop(217, "screenshot.update() failed");
-        }
+        stop(217, "screenshot.update() failed");
     }
     #endif // SCR_SDK_VERSION
     inputBase = screenshot.getPixels();

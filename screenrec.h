@@ -126,7 +126,7 @@ int targetFrameTime = 0;
 
 // input
 char outputName [512];
-char rotation [8];
+int rotation;
 bool micAudio = false;
 int reqWidth = 0;
 int reqHeight = 0;
@@ -147,6 +147,7 @@ int main(int argc, char* argv[]);
 void setupOutput();
 void trim(char* str);
 void setupInput();
+void adjustRotation();
 void setupEgl();
 void setupGl();
 int getTexSize(int size);
