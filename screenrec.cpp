@@ -527,11 +527,23 @@ void updateInput() {
 #else
     #if SCR_SDK_VERSION >= 17
     if (screenshot.update(display, reqWidth, reqHeight) != NO_ERROR) {
-        stop(217, "screenshot.update() failed");
+        ALOGE("screenshot.update() failed, swapping dimensions");
+        int tmp = reqWidth;
+        reqWidth = reqHeight;
+        reqHeight = tmp;
+        if (screenshot.update(display, reqWidth, reqHeight) != NO_ERROR) {
+            stop(217, "screenshot.update() failed");
+        }
     }
     #else
     if (screenshot.update(reqWidth, reqHeight) != NO_ERROR) {
-        stop(217, "screenshot.update() failed");
+        ALOGE("screenshot.update() failed, swapping dimensions");
+        int tmp = reqWidth;
+        reqWidth = reqHeight;
+        reqHeight = tmp;
+        if (screenshot.update(reqWidth, reqHeight) != NO_ERROR) {
+            stop(217, "screenshot.update() failed");
+        }
     }
     #endif // SCR_SDK_VERSION
     inputBase = screenshot.getPixels();
