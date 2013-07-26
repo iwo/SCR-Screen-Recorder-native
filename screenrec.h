@@ -21,7 +21,14 @@
 #endif
 
 #include <media/mediarecorder.h>
+#include <gui/Surface.h>
+#include <binder/ProcessState.h>
+
+#if SCR_SDK_VERSION >= 18
+#include <ui/GraphicBuffer.h>
+#else
 #include <gui/SurfaceTextureClient.h>
+#endif
 
 #ifdef SCR_FB
 
@@ -114,7 +121,7 @@ bool rotateView = true;
 
 // MediaRecorder
 sp<MediaRecorder> mr = NULL;
-sp<SurfaceTextureClient> mSTC = NULL;
+sp<Surface> mSTC = NULL;
 sp<ANativeWindow> mANW = NULL;
 bool mrRunning = false;
 

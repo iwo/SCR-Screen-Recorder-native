@@ -5,6 +5,7 @@ MY_SHARED_LIBRARIES := \
     libEGL \
     libmedia \
     libutils \
+    libbinder \
     libgui \
     libui \
     libGLESv2 \

@@ -38,10 +38,7 @@ static EGLint eglContextAttribs[] = {
             EGL_NONE };
 
 
-
-
 int main(int argc, char* argv[]) {
-    ProcessState::self()->startThreadPool();
     printf("ready\n");
     fflush(stdout);
 
@@ -70,7 +67,7 @@ int main(int argc, char* argv[]) {
 
     printf("recording\n");
     fflush(stdout);
-    ALOGV("Setup finished. Starting rendering loop.");
+    ALOGI("Setup finished. Starting rendering loop.");
 
     timespec frameStart;
     timespec frameEnd;
@@ -166,7 +163,7 @@ void trim(char* str) {
 
 void setupInput() {
 #ifdef SCR_FB
-    ALOGV("Setting up FB mmap");
+    ALOGI("Setting up FB mmap");
     const char* fbpath = "/dev/graphics/fb0";
     fbFd = open(fbpath, O_RDONLY);
 
@@ -184,7 +181,7 @@ void setupInput() {
     size_t offset = (fbInfo.xoffset + fbInfo.yoffset * fbInfo.xres) * bytespp;
     inputWidth = fbInfo.xres;
     inputHeight = fbInfo.yres;
-    ALOGV("FB width: %d hieght: %d bytespp: %d", inputWidth, inputHeight, bytespp);
+    ALOGI("FB width: %d hieght: %d bytespp: %d", inputWidth, inputHeight, bytespp);
 
     size = inputWidth * inputHeight * bytespp;
 
@@ -200,12 +197,9 @@ void setupInput() {
     if (display == NULL) {
         stop(205, "Can't access display");
     }
+    
     if (screenshot.update(display) != NO_ERROR) {
-        stop(217, "screenshot.update() failed");
-    }
-    #else
-    if (screenshot.update() != NO_ERROR) {
-        stop(217, "screenshot.update() failed");
+        stop(248, "screenshot.update() failed");
     }
     #endif // SCR_SDK_VERSION
 
@@ -218,7 +212,8 @@ void setupInput() {
     updateInput();
     inputWidth = screenshot.getWidth();
     inputHeight = screenshot.getHeight();
-    ALOGV("Screenshot width: %d, height: %d, format %d, size: %d", inputWidth, inputHeight, screenshot.getFormat(), screenshot.getSize());
+    ALOGI("Screenshot width: %d, height: %d, format %d, size: %d", inputWidth, inputHeight, screenshot.getFormat(), screenshot.getSize());
+    screenshot.release();
 
 #endif // SCR_FB
 
@@ -240,7 +235,7 @@ void adjustRotation() {
 }
 
 void setupEgl() {
-    ALOGV("setupEgl()");
+    ALOGI("setupEgl()");
     mEglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (eglGetError() != EGL_SUCCESS || mEglDisplay == EGL_NO_DISPLAY) {
         stop(207, "eglGetDisplay() failed");
@@ -262,12 +257,12 @@ void setupEgl() {
     if (eglGetError() != EGL_SUCCESS || mEglContext == EGL_NO_CONTEXT) {
         stop(210, "eglGetDisplay() failed");
     }
-    ALOGV("EGL initialized");
+    ALOGI("EGL initialized");
 }
 
 
 void setupGl() {
-    ALOGV("setup GL");
+    ALOGI("setup GL");
 
     mEglSurface = eglCreateWindowSurface(mEglDisplay, mEglconfig, mANW.get(), NULL);
     if (eglGetError() != EGL_SUCCESS || mEglSurface == EGL_NO_SURFACE) {
@@ -377,7 +372,7 @@ void setupMediaRecorder() {
     mr->setParameters(String8("video-param-encoding-bitrate=10000000"));
     mr->prepare();
 
-    ALOGV("Starting MediaRecorder...");
+    ALOGI("Starting MediaRecorder...");
     if (mr->start() != OK) {
         stop(213, "Error starting MediaRecorder");
     } else {
@@ -386,7 +381,7 @@ void setupMediaRecorder() {
 
     //TODO: check media recorder status
 
-    sp<IGraphicBufferProducer> iST = mr->querySurfaceMediaSourceFromMediaServer();
+    iST = mr->querySurfaceMediaSourceFromMediaServer();
     mSTC = new Surface(iST);
     mANW = mSTC;
 
@@ -504,8 +499,8 @@ void renderFrameGl() {
     glClearColor(0, 0.9, 0.7, 0.6);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, inputWidth, inputHeight, GL_RGBA, GL_UNSIGNED_BYTE, inputBase);
-    checkGlError("glTexSubImage2D");
+    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, inputWidth, inputHeight, GL_RGBA, GL_UNSIGNED_BYTE, inputBase);
+    //checkGlError("glTexSubImage2D");
 
     GLfloat wFillPortion = inputWidth/(float)texWidth;
     GLfloat hFillPortion = inputHeight/(float)texHeight;
@@ -549,19 +544,17 @@ void updateInput() {
     size_t offset = (fbInfo.xoffset + fbInfo.yoffset * fbInfo.xres) * bytespp;
     inputBase = (void const *)((char const *)fbMapBase + offset);
 #else
-    #if SCR_SDK_VERSION >= 18
-    screenshot.release();
-    #endif
-    #if SCR_SDK_VERSION >= 17
+    /*#if SCR_SDK_VERSION >= 17
+    ALOGI("screenshot.update( display %d %d )", reqWidth, reqHeight);
     if (screenshot.update(display, reqWidth, reqHeight) != NO_ERROR) {
-        stop(217, "screenshot.update() failed");
+        stop(246, "screenshot.update() failed");
     }
     #else
     if (screenshot.update(reqWidth, reqHeight) != NO_ERROR) {
-        stop(217, "screenshot.update() failed");
+        stop(247, "screenshot.update() failed");
     }
-    #endif // SCR_SDK_VERSION
-    inputBase = screenshot.getPixels();
+    #endif // SCR_SDK_VERSION*/
+    //inputBase = screenshot.getPixels();
 #endif
 }
 
@@ -580,7 +573,7 @@ void stop(int error, const char* message) {
     fflush(stderr);
 
     if (error == 0) {
-        ALOGV("%s - stopping\n", message);
+        ALOGI("%s - stopping\n", message);
     } else {
         ALOGE("%d - stopping\n", error);
     }
@@ -589,7 +582,7 @@ void stop(int error, const char* message) {
         if (errorCode == 0 && error != 0) {
             errorCode = error;
         }
-        ALOGV("Already stopping");
+        ALOGI("Already stopping");
         return;
     }
 
@@ -637,13 +630,13 @@ void tearDownMediaRecorder() {
 }
 
 void* stoppingThreadStart(void* args) {
-    ALOGV("stoppingThreadStart");
+    ALOGI("stoppingThreadStart");
 
     if (mr.get() != NULL) {
-        ALOGV("Stopping MediaRecorder");
+        ALOGI("Stopping MediaRecorder");
         mr->stop();
         mrRunning = false;
-        ALOGV("MediaRecorder Stopped");
+        ALOGI("MediaRecorder Stopped");
     }
     
     return NULL;
