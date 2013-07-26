@@ -21,8 +21,12 @@
 #endif
 
 #include <media/mediarecorder.h>
-#include <gui/Surface.h>
 #include <binder/ProcessState.h>
+#if SCR_SDK_VERSION >= 16
+#include <gui/Surface.h>
+#else
+#include <surfaceflinger/Surface.h>
+#endif // SCR_SDK_VERSION
 
 #if SCR_SDK_VERSION >= 18
 #include <ui/GraphicBuffer.h>
