@@ -387,8 +387,11 @@ void setupMediaRecorder() {
     }
 
     //TODO: check media recorder status
-
+    #if SCR_SDK_VERSION >= 18
     sp<IGraphicBufferProducer> iST = mr->querySurfaceMediaSourceFromMediaServer();
+    #else
+    sp<ISurfaceTexture> iST = mr->querySurfaceMediaSourceFromMediaServer();
+    #endif // SCR_SDK_VERSION
     mSTC = new Surface(iST);
     mANW = mSTC;
 
