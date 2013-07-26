@@ -115,7 +115,7 @@ sp<IBinder> display;
 #endif //SCR_FB
 
 void const* inputBase;
-int inputWidth, inputHeight;
+int inputWidth, inputHeight, inputStride;
 int texWidth, texHeight;
 bool rotateView = true;
 

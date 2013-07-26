@@ -184,6 +184,7 @@ void setupInput() {
     size_t offset = (fbInfo.xoffset + fbInfo.yoffset * fbInfo.xres) * bytespp;
     inputWidth = fbInfo.xres;
     inputHeight = fbInfo.yres;
+    inputStride = inputWidth;
     ALOGV("FB width: %d hieght: %d bytespp: %d", inputWidth, inputHeight, bytespp);
 
     size = inputWidth * inputHeight * bytespp;
@@ -218,7 +219,8 @@ void setupInput() {
     updateInput();
     inputWidth = screenshot.getWidth();
     inputHeight = screenshot.getHeight();
-    ALOGV("Screenshot width: %d, height: %d, format %d, size: %d", inputWidth, inputHeight, screenshot.getFormat(), screenshot.getSize());
+    inputStride = screenshot.getStride();
+    ALOGV("Screenshot width: %d, height: %d, stride: %d, format %d, size: %d", inputWidth, inputHeight, inputStride, screenshot.getFormat(), screenshot.getSize());
 
 #endif // SCR_FB
 
@@ -288,7 +290,7 @@ void setupGl() {
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     checkGlError("texture setup");
 
-    texWidth = getTexSize(inputWidth);
+    texWidth = getTexSize(inputStride);
     texHeight = getTexSize(inputHeight);
 
     mPixels = (uint32_t*)malloc(4 * texWidth * texHeight);
@@ -476,7 +478,7 @@ void renderFrameCPU() {
     if (rotateView) {
         for (int y = 0; y < videoHeight; y++) {
             for (int x = 0; x < videoWidth; x++) {
-                bufPixels[y * stride + x] = screen[x * videoHeight + videoHeight - y - 1];
+                bufPixels[y * stride + x] = screen[x * inputStride + videoHeight - y - 1];
             }
         }
     } else {
@@ -504,10 +506,10 @@ void renderFrameGl() {
     glClearColor(0, 0.9, 0.7, 0.6);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, inputWidth, inputHeight, GL_RGBA, GL_UNSIGNED_BYTE, inputBase);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, inputStride, inputHeight, GL_RGBA, GL_UNSIGNED_BYTE, inputBase);
     checkGlError("glTexSubImage2D");
 
-    GLfloat wFillPortion = inputWidth/(float)texWidth;
+    GLfloat wFillPortion = inputStride/(float)texWidth;
     GLfloat hFillPortion = inputHeight/(float)texHeight;
 
     GLfloat vertices[] =    {-1.0,-1.0,0.0,   1.0,-1.0,0.0,  -1.0,1.0,0.0,  1.0,1.0,0.0};
