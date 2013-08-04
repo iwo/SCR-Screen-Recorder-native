@@ -56,6 +56,9 @@ int main(int argc, char* argv[]) {
     getUseGl();
     getColorFormat();
 
+    ALOGI("SETTINGS rotation: %d, micAudio: %s, resolution: %d x %d, frameRate: %d, mode: %s, colorFix: %s",
+          rotation, micAudio ? "true" : "false", reqWidth, reqHeight, frameRate, useGl ? "GPU" : "CPU", colorMatrix == rgbaMatrix ? "false" : "true");
+
     printf("configured\n");
     fflush(stdout);
     setupOutput();
