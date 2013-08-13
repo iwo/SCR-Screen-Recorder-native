@@ -482,11 +482,21 @@ void renderFrameCPU() {
     int stride = buf->stride;
 
     if (rotateView) {
-        for (int y = 0; y < videoHeight; y++) {
-            for (int x = 0; x < videoWidth; x++) {
-                bufPixels[y * stride + x] = screen[x * inputStride + videoHeight - y - 1];
+        if (colorMatrix == rgbaMatrix) {
+            for (int y = 0; y < videoHeight; y++) {
+                for (int x = 0; x < videoWidth; x++) {
+                    bufPixels[y * stride + x] = screen[x * inputStride + videoHeight - y - 1];
+                }
+            }
+        } else {
+            for (int y = 0; y < videoHeight; y++) {
+                for (int x = 0; x < videoWidth; x++) {
+                    uint32_t color = screen[x * inputStride + videoHeight - y - 1];
+                    bufPixels[y * stride + x] = (color & 0xFF00FF00) | ((color >> 16) & 0x000000FF) | ((color << 16) & 0x00FF0000);
+                }
             }
         }
+
     } else {
         //TODO: copy by row if buf->width != buf->stride
         memcpy(bufPixels, screen, videoWidth * videoHeight * 4);
