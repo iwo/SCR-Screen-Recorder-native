@@ -102,6 +102,18 @@ GLfloat bgraMatrix[] = {
     1.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 0.0, 1.0};
 
+GLfloat vertices[] =  {
+    -1.0, -1.0, 0.0,
+     1.0, -1.0, 0.0,
+    -1.0,  1.0, 0.0,
+     1.0,  1.0, 0.0};
+
+GLfloat texCoordinates[] = {
+    0.0, 0.0, 0.0,
+    1.0, 0.0, 0.0,
+    0.0, 1.0, 0.0,
+    1.0 ,1.0, 0.0 };
+
 // Output
 int outputFd = -1;
 int videoWidth, videoHeight;

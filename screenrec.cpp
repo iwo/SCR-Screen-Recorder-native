@@ -339,6 +339,14 @@ void setupGl() {
 
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, mPixels);
         checkGlError("glTexImage2D", true);
+        
+        GLfloat wFillPortion = inputStride/(float)texWidth;
+        GLfloat hFillPortion = inputHeight/(float)texHeight;
+
+        texCoordinates[3] = wFillPortion;
+        texCoordinates[7] = hFillPortion;
+        texCoordinates[9] = wFillPortion;
+        texCoordinates[10] = hFillPortion;
     }
 
     glViewport(0, 0, videoWidth, videoHeight);
@@ -536,20 +544,10 @@ void renderFrameGl() {
     glClearColor(0, 0.9, 0.7, 0.6);
     glClear(GL_COLOR_BUFFER_BIT);
 
-
-    GLfloat wFillPortion = inputStride/(float)texWidth;
-    GLfloat hFillPortion = inputHeight/(float)texHeight;
-
-    if (useOes) {
-        wFillPortion = 1.0;
-        hFillPortion = 1.0;
-    } else {
+    if (!useOes) {
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, inputStride, inputHeight, GL_RGBA, GL_UNSIGNED_BYTE, inputBase);
         checkGlError("glTexSubImage2D");
     }
-
-    GLfloat vertices[] =    {-1.0,-1.0,0.0,   1.0,-1.0,0.0,  -1.0,1.0,0.0,  1.0,1.0,0.0};
-    GLfloat coordinates[] = {0.0,0.0,0.0,   wFillPortion,0.0,0.0,  0.0,hFillPortion,0.0,  wFillPortion,hFillPortion,0.0 };
 
     glUseProgram(mProgram);
     checkGlError("glUseProgram");
@@ -562,7 +560,7 @@ void renderFrameGl() {
 
     glVertexAttribPointer(mvPositionHandle, 3, GL_FLOAT, GL_FALSE, 0, vertices);
     glEnableVertexAttribArray(mvPositionHandle);
-    glVertexAttribPointer(mTexCoordHandle, 3, GL_FLOAT, GL_FALSE, 0, coordinates);
+    glVertexAttribPointer(mTexCoordHandle, 3, GL_FLOAT, GL_FALSE, 0, texCoordinates);
     glEnableVertexAttribArray(mTexCoordHandle);
     checkGlError("vertexAttrib");
 
