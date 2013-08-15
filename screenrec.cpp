@@ -321,7 +321,16 @@ void setupGl() {
     mColorTransformHandle = glGetUniformLocation(mProgram, "colorTransform");
     checkGlError("glGetUniformLocation");
 
-    if (!useOes) {
+    if (useOes) {
+        glBindTexture(GL_TEXTURE_EXTERNAL_OES, 1);
+        checkGlError("glBindTexture");
+
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        checkGlError("glTexParameteri");
+    } else {
         glDeleteTextures(1, &mTexture);
         glGenTextures(1, &mTexture);
         glBindTexture(GL_TEXTURE_2D, mTexture);
@@ -566,15 +575,6 @@ void renderFrameGl() {
 
     #if SCR_SDK_VERSION >= 18 && !defined SCR_FB
     if (useOes) {
-        glBindTexture(GL_TEXTURE_EXTERNAL_OES, 1);
-        checkGlError("glBindTexture");
-
-        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        checkGlError("glTexParameteri");
-
         if (glConsumer->updateTexImage() != NO_ERROR) {
             stop(226, "texture update failed");
         }
