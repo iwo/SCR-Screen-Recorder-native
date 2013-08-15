@@ -606,6 +606,7 @@ void updateInput() {
 #else
 
     if (useOes) {
+        #if SCR_SDK_VERSION >= 18
         if (glConsumer.get() != NULL) {
             glConsumer.clear();
         }
@@ -615,6 +616,7 @@ void updateInput() {
                 reqWidth, reqHeight, 0, -1) != NO_ERROR) {
             stop(227, "capture failed");
         }
+        #endif // SCR_SDK_VERSION >= 18
     } else {
         screenshotUpdate(reqWidth, reqHeight);
         inputBase = screenshot.getPixels();
