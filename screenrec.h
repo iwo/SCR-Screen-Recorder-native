@@ -159,6 +159,8 @@ int frameRate = 0;
 bool restrictFrameRate = true;
 bool useGl = true;
 bool useOes = false;
+int videoBitrate;
+int audioSamplingRate;
 
 
 // pthreads
@@ -183,6 +185,8 @@ void getResolution();
 void getFrameRate();
 void getUseGl();
 void getColorFormat();
+void getVideoBitrate();
+void getAudioSamplingRate();
 void setupMediaRecorder();
 void* commandThreadStart(void* args);
 void listenForCommand();

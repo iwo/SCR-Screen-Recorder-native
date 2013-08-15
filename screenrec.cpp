@@ -66,6 +66,8 @@ int main(int argc, char* argv[]) {
     getFrameRate();
     getUseGl();
     getColorFormat();
+    getVideoBitrate();
+    getAudioSamplingRate();
 
     ALOGI("SETTINGS rotation: %d, micAudio: %s, resolution: %d x %d, frameRate: %d, mode: %s, colorFix: %s",
           rotation, micAudio ? "true" : "false", reqWidth, reqHeight, frameRate, useGl ? "GPU" : "CPU", colorMatrix == rgbaMatrix ? "false" : "true");
@@ -161,6 +163,26 @@ void getColorFormat() {
         if (mode[0] == 'B') { //BGRA
             colorMatrix = bgraMatrix;
         }
+    }
+}
+
+void getVideoBitrate() {
+    char bitrate[16];
+    fgets(bitrate, 16, stdin);
+    videoBitrate = atoi(bitrate);
+
+    if (videoBitrate == 0) {
+        videoBitrate = 10000000;
+    }
+}
+
+void getAudioSamplingRate() {
+    char sampling[16];
+    fgets(sampling, 16, stdin);
+    audioSamplingRate = atoi(sampling);
+
+    if (audioSamplingRate == 0) {
+        audioSamplingRate = 16000;
     }
 }
 
@@ -401,16 +423,14 @@ void setupMediaRecorder() {
     mr->setVideoEncoder(VIDEO_ENCODER_H264);
     if (micAudio) {
         mr->setAudioEncoder(AUDIO_ENCODER_AAC);
-        mr->setParameters(String8("audio-param-sampling-rate=16000"));
+        mr->setParameters(String8::format("audio-param-sampling-rate=%d", audioSamplingRate));
         mr->setParameters(String8("audio-param-encoding-bitrate=128000"));
     }
     mr->setOutputFile(outputFd, 0, 0);
     mr->setVideoSize(videoWidth, videoHeight);
     mr->setVideoFrameRate(frameRate);
-    char rotationParam[64];
-    sprintf(rotationParam, "video-param-rotation-angle-degrees=%d", rotation);
-    mr->setParameters(String8(rotationParam));
-    mr->setParameters(String8("video-param-encoding-bitrate=10000000"));
+    mr->setParameters(String8::format("video-param-rotation-angle-degrees=%d", rotation));
+    mr->setParameters(String8::format("video-param-encoding-bitrate=%d", videoBitrate));
     mr->prepare();
 
     ALOGV("Starting MediaRecorder...");
