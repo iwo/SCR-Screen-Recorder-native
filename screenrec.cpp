@@ -24,6 +24,17 @@ static const char sFragmentShader[] =
     "  gl_FragColor.rgba = colorTransform * texture2D(textureSampler, tc); \n"
     "}\n";
 
+
+static const char sFragmentShaderOES[] =
+    "#extension GL_OES_EGL_image_external : require\n"
+    "precision mediump float;\n"
+    "uniform samplerExternalOES textureSampler; \n"
+    "uniform mat4 colorTransform;"
+    "varying vec2 tc; \n"
+    "void main() {\n"
+    "  gl_FragColor.rgba = colorTransform * texture2D(textureSampler, tc); \n"
+    "}\n";
+
 static EGLint eglConfigAttribs[] = {
             EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
             EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
@@ -137,6 +148,8 @@ void getUseGl() {
     if (fgets(mode, 8, stdin) != NULL) {
         if (mode[0] == 'C') { //CPU
             useGl = false;
+        } else if (mode[0] == 'O') { //OES
+            useOes = true;
         }
     }
 }
@@ -219,10 +232,13 @@ void setupInput() {
         reqWidth = reqHeight;
         reqHeight = tmp;
     }
-    updateInput();
+    screenshotUpdate(reqWidth, reqHeight);
     inputWidth = screenshot.getWidth();
     inputHeight = screenshot.getHeight();
     inputStride = screenshot.getStride();
+    if (useOes) {
+        screenshot.release();
+    }
     ALOGV("Screenshot width: %d, height: %d, stride: %d, format %d, size: %d", inputWidth, inputHeight, inputStride, screenshot.getFormat(), screenshot.getSize());
 
 #endif // SCR_FB
@@ -286,22 +302,11 @@ void setupGl() {
 
     transformMatrix = rotateView ? flipAndRotateMatrix : flipMatrix;
 
-    glDeleteTextures(1, &mTexture);
-    glGenTextures(1, &mTexture);
-    glBindTexture(GL_TEXTURE_2D, mTexture);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    checkGlError("texture setup");
-
-    texWidth = getTexSize(inputStride);
-    texHeight = getTexSize(inputHeight);
-
-    mPixels = (uint32_t*)malloc(4 * texWidth * texHeight);
-    if (mPixels == (uint32_t*)NULL) {
-        stop(211, "malloc failed");
+    if (useOes) {
+        mProgram = createProgram(sVertexShader, sFragmentShaderOES);
+    } else {
+        mProgram = createProgram(sVertexShader, sFragmentShader);
     }
-
-    mProgram = createProgram(sVertexShader, sFragmentShader);
     if (!mProgram) {
         stop(212, "Could not create GL program.");
     }
@@ -316,16 +321,25 @@ void setupGl() {
     mColorTransformHandle = glGetUniformLocation(mProgram, "colorTransform");
     checkGlError("glGetUniformLocation");
 
-    glTexImage2D(GL_TEXTURE_2D,
-                        0,
-                        GL_RGBA,
-                        texWidth,
-                        texHeight,
-                        0,
-                        GL_RGBA,
-                        GL_UNSIGNED_BYTE,
-                        mPixels);
-    checkGlError("glTexImage2D", true);
+    if (!useOes) {
+        glDeleteTextures(1, &mTexture);
+        glGenTextures(1, &mTexture);
+        glBindTexture(GL_TEXTURE_2D, mTexture);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        checkGlError("texture setup");
+
+        texWidth = getTexSize(inputStride);
+        texHeight = getTexSize(inputHeight);
+
+        mPixels = (uint32_t*)malloc(4 * texWidth * texHeight);
+        if (mPixels == (uint32_t*)NULL) {
+            stop(211, "malloc failed");
+        }
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, mPixels);
+        checkGlError("glTexImage2D", true);
+    }
 
     glViewport(0, 0, videoWidth, videoHeight);
     checkGlError("glViewport");
@@ -522,11 +536,17 @@ void renderFrameGl() {
     glClearColor(0, 0.9, 0.7, 0.6);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, inputStride, inputHeight, GL_RGBA, GL_UNSIGNED_BYTE, inputBase);
-    checkGlError("glTexSubImage2D");
 
     GLfloat wFillPortion = inputStride/(float)texWidth;
     GLfloat hFillPortion = inputHeight/(float)texHeight;
+
+    if (useOes) {
+        wFillPortion = 1.0;
+        hFillPortion = 1.0;
+    } else {
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, inputStride, inputHeight, GL_RGBA, GL_UNSIGNED_BYTE, inputBase);
+        checkGlError("glTexSubImage2D");
+    }
 
     GLfloat vertices[] =    {-1.0,-1.0,0.0,   1.0,-1.0,0.0,  -1.0,1.0,0.0,  1.0,1.0,0.0};
     GLfloat coordinates[] = {0.0,0.0,0.0,   wFillPortion,0.0,0.0,  0.0,hFillPortion,0.0,  wFillPortion,hFillPortion,0.0 };
@@ -545,6 +565,23 @@ void renderFrameGl() {
     glVertexAttribPointer(mTexCoordHandle, 3, GL_FLOAT, GL_FALSE, 0, coordinates);
     glEnableVertexAttribArray(mTexCoordHandle);
     checkGlError("vertexAttrib");
+
+    #if SCR_SDK_VERSION >= 18 && !defined SCR_FB
+    if (useOes) {
+        glBindTexture(GL_TEXTURE_EXTERNAL_OES, 1);
+        checkGlError("glBindTexture");
+
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        checkGlError("glTexParameteri");
+
+        if (glConsumer->updateTexImage() != NO_ERROR) {
+            stop(226, "texture update failed");
+        }
+    }
+    #endif
 
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     checkGlError("glDrawArrays");
@@ -567,20 +604,39 @@ void updateInput() {
     size_t offset = (fbInfo.xoffset + fbInfo.yoffset * fbInfo.xres) * bytespp;
     inputBase = (void const *)((char const *)fbMapBase + offset);
 #else
+
+    if (useOes) {
+        if (glConsumer.get() != NULL) {
+            glConsumer.clear();
+        }
+        glConsumer = new GLConsumer(1);
+        glConsumer->setName(String8("scr_consumer"));
+             if (ScreenshotClient::capture(display, glConsumer->getBufferQueue(),
+                reqWidth, reqHeight, 0, -1) != NO_ERROR) {
+            stop(227, "capture failed");
+        }
+    } else {
+        screenshotUpdate(reqWidth, reqHeight);
+        inputBase = screenshot.getPixels();
+    }
+#endif
+}
+
+void screenshotUpdate(int reqWidth, int reqHeight) {
+    #ifndef SCR_FB
     #if SCR_SDK_VERSION >= 18
-    screenshot.release();
+        screenshot.release();
     #endif
     #if SCR_SDK_VERSION >= 17
     if (screenshot.update(display, reqWidth, reqHeight) != NO_ERROR) {
-        stop(217, "screenshot.update() failed");
+        stop(217, "update failed");
     }
     #else
     if (screenshot.update(reqWidth, reqHeight) != NO_ERROR) {
-        stop(217, "screenshot.update() failed");
+        stop(217, "update failed");
     }
     #endif // SCR_SDK_VERSION
-    inputBase = screenshot.getPixels();
-#endif
+    #endif // ndef SCR_FB
 }
 
 

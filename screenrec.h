@@ -115,7 +115,10 @@ void const* fbMapBase = MAP_FAILED;
 ScreenshotClient screenshot;
 #if SCR_SDK_VERSION >= 17
 sp<IBinder> display;
-#endif // SCR_SDK_VERSION
+#endif // SCR_SDK_VERSION 17
+#if SCR_SDK_VERSION >= 18
+sp<GLConsumer> glConsumer;
+#endif // SCR_SDK_VERSION 18
 #endif //SCR_FB
 
 void const* inputBase;
@@ -144,7 +147,7 @@ int reqHeight = 0;
 int frameRate = 0;
 bool restrictFrameRate = true;
 bool useGl = true;
-
+bool useOes = false;
 
 
 // pthreads
@@ -184,6 +187,7 @@ void closeOutput();
 void closeInput();
 void waitForNextFrame();
 void sigpipeHandler(int param);
+void screenshotUpdate(int reqWidth, int reqHeight);
 
 // OpenGL helpers
 void checkGlError(const char* op, bool critical);
