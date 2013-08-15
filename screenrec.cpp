@@ -338,8 +338,8 @@ void setupGl() {
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         checkGlError("texture setup");
 
-        texWidth = getTexSize(inputStride);
-        texHeight = getTexSize(inputHeight);
+        int texWidth = getTexSize(inputStride);
+        int texHeight = getTexSize(inputHeight);
 
         mPixels = (uint32_t*)malloc(4 * texWidth * texHeight);
         if (mPixels == (uint32_t*)NULL) {

@@ -135,7 +135,6 @@ sp<GLConsumer> glConsumer;
 
 void const* inputBase;
 int inputWidth, inputHeight, inputStride;
-int texWidth, texHeight;
 bool rotateView = true;
 
 // MediaRecorder
