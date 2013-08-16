@@ -151,7 +151,9 @@ void getUseGl() {
         if (mode[0] == 'C') { //CPU
             useGl = false;
         } else if (mode[0] == 'O') { //OES
+            #if SCR_SDK_VERSION >= 18
             useOes = true;
+            #endif
         }
     }
 }
