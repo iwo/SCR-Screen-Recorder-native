@@ -48,16 +48,16 @@ static EGLint eglContextAttribs[] = {
             EGL_CONTEXT_CLIENT_VERSION, 2,
             EGL_NONE };
 
-
-
-
 int main(int argc, char* argv[]) {
     ProcessState::self()->startThreadPool();
     printf("ready\n");
     fflush(stdout);
 
     signal(SIGPIPE, sigpipeHandler);
+    signal(SIGUSR1, sigusr1Handler);
     prctl(PR_SET_PDEATHSIG, SIGKILL);
+
+    mainThread = pthread_self();
 
     getOutputName();
     getRotation();
@@ -112,9 +112,14 @@ int main(int argc, char* argv[]) {
 #endif
     }
 
-    stop(0, "finished");
+    if (!stopping) {
+        stop(0, "finished");
+    }
 
-    return 0;
+    ALOGV("Interrupting command thread");
+    pthread_kill(commandThread, SIGUSR1);
+
+    return errorCode;
 }
 
 void getOutputName() {
@@ -417,6 +422,11 @@ void getAudioSetting() {
 // Set up the MediaRecorder which runs in the same process as mediaserver
 void setupMediaRecorder() {
     mr = new MediaRecorder();
+    if (mr->initCheck() != NO_ERROR) {
+        stop(231, "Error starting MediaRecorder");
+    }
+    sp<SCRListener> listener = new SCRListener();
+    mr->setListener(listener);
     mr->setVideoSource(VIDEO_SOURCE_GRALLOC_BUFFER);
     if (micAudio) {
         mr->setAudioSource(AUDIO_SOURCE_MIC);
@@ -472,7 +482,8 @@ void listenForCommand() {
 
 void* commandThreadStart(void* args) {
     char command [16];
-    fgets(command, 16, stdin);
+    memset(command,'\0', 16);
+    read(fileno(stdin), command, 15);
     finished = true;
     return NULL;
 }
@@ -598,7 +609,9 @@ void renderFrameGl() {
     #if SCR_SDK_VERSION >= 18 && !defined SCR_FB
     if (useOes) {
         if (glConsumer->updateTexImage() != NO_ERROR) {
-            stop(226, "texture update failed");
+            if (!stopping) {
+                stop(226, "texture update failed");
+            }
         }
     }
     #endif
@@ -661,18 +674,13 @@ void screenshotUpdate(int reqWidth, int reqHeight) {
     #endif // ndef SCR_FB
 }
 
-
 void stop(int error, const char* message) {
-    pthread_t threadId = pthread_self();
-    const char* thread;
-    if (threadId == commandThread) {
-        thread = "command";
-    } else if (threadId == stoppingThread) {
-        thread = "stopping";
-    } else {
-        thread = "main";
-    }
-    fprintf(stderr, "%d - stop requested from thread %s\n", error, thread);
+    stop(error, true, message);
+}
+
+void stop(int error, bool fromMainThread, const char* message) {
+
+    fprintf(stderr, "%d - stop requested from thread %s\n", error, getThreadName());
     fflush(stderr);
 
     if (error == 0) {
@@ -692,30 +700,22 @@ void stop(int error, const char* message) {
     stopping = true;
     errorCode = error;
 
-    tearDownMediaRecorder();
+    tearDownMediaRecorder(fromMainThread);
     if (useGl)
         tearDownEgl();
     closeOutput();
     closeInput();
-
-    if (errorCode != 0) {
-        exit(errorCode);
-    }
 }
 
 
-void tearDownMediaRecorder() {
+void tearDownMediaRecorder(bool async) {
     if (mr.get() != NULL) {
         if (mrRunning) {
-            // MediaRecorder needs to be stopped from separate thread as couple frames may need to be rendered before mr->stop() returns.
-            if (pthread_create(&stoppingThread, NULL, &stoppingThreadStart, NULL) != 0){
-                ALOGE("Can't create stopping thread, stopping synchronously");
-                stoppingThreadStart(NULL);
+            if (async) {
+                stopMediaRecorderAsync();
+            } else {
+                stopMediaRecorder();
             }
-            while (mrRunning) {
-                renderFrame();
-            }
-            pthread_join(stoppingThread, NULL);
         }
         mr.clear();
     }
@@ -732,19 +732,32 @@ void tearDownMediaRecorder() {
     }
 }
 
-void* stoppingThreadStart(void* args) {
-    ALOGV("stoppingThreadStart");
+void stopMediaRecorderAsync() {
+    // MediaRecorder needs to be stopped from separate thread as couple frames may need to be rendered before mr->stop() returns.
+    if (pthread_create(&stoppingThread, NULL, &stoppingThreadStart, NULL) != 0){
+        ALOGE("Can't create stopping thread, stopping synchronously");
+        stopMediaRecorder();
+    }
+    while (mrRunning) {
+        renderFrame();
+    }
+    pthread_join(stoppingThread, NULL);
+}
 
+void stopMediaRecorder() {
     if (mr.get() != NULL) {
         ALOGV("Stopping MediaRecorder");
         mr->stop();
         mrRunning = false;
         ALOGV("MediaRecorder Stopped");
     }
-    
-    return NULL;
 }
 
+void* stoppingThreadStart(void* args) {
+    ALOGV("stoppingThreadStart");
+    stopMediaRecorder();
+    return NULL;
+}
 
 void tearDownEgl() {
     if (mEglContext != EGL_NO_CONTEXT) {
@@ -802,11 +815,60 @@ void waitForNextFrame() {
     }
 }
 
+void SCRListener::notify(int msg, int ext1, int ext2)
+{
+    ALOGI("SCRListener %d %d %d, track: %d value: %d\n", msg, ext1, ext2, (ext1 >> 24), (ext1 && 0x0000FFFF));
+
+    int error = 0;
+
+    if (msg == MEDIA_RECORDER_EVENT_ERROR) {
+        ALOGE("MEDIA_RECORDER_EVENT_ERROR");
+        error = 227;
+    } else if (msg == MEDIA_RECORDER_TRACK_EVENT_ERROR) {
+        ALOGE("MEDIA_RECORDER_TRACK_EVENT_ERROR");
+        error = 228;
+    } else if (msg == MEDIA_RECORDER_EVENT_INFO && ext1 == MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED) {
+        ALOGE("MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED");
+        error = 229;
+    } else if (msg == MEDIA_RECORDER_EVENT_INFO && ext1 == MEDIA_RECORDER_INFO_MAX_DURATION_REACHED) {
+        ALOGE("MEDIA_RECORDER_INFO_MAX_DURATION_REACHED");
+        error = 230;
+    }
+
+    if (error != 0 && firstError) { //TODO: add proper thread handling instead of this hack
+        firstError = false;
+
+        usleep(500); // wait a moment for mediaserver to finish it's stuff
+
+        stop(error, false, "stopping from listener");
+
+        ALOGV("SCRListener thread completed");
+    }
+}
+
 void sigpipeHandler(int param) {
     ALOGI("SIGPIPE received");
     exit(222);
 }
 
+void sigusr1Handler(int param) {
+    ALOGV("SIGUSR1 received");
+    pthread_exit(0);
+}
+
+const char* getThreadName() {
+    pthread_t threadId = pthread_self();
+    if (threadId == commandThread) {
+        return "command";
+    }
+    if (threadId == stoppingThread) {
+        return "stopping";
+    }
+    if (threadId == mainThread) {
+        return "main";
+    }
+    return "other";
+}
 
 // OpenGL helpers
 

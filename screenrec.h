@@ -164,6 +164,7 @@ int audioSamplingRate;
 
 
 // pthreads
+pthread_t mainThread;
 pthread_t stoppingThread;
 pthread_t commandThread;
 
@@ -195,19 +196,33 @@ void renderFrameGl();
 void renderFrameCPU();
 void updateInput();
 void stop(int error, const char* message);
-void tearDownMediaRecorder();
+void stop(int error, bool fromMainThread, const char* message);
+void tearDownMediaRecorder(bool async);
 void* stoppingThreadStart(void* args);
+void stopMediaRecorder();
+void stopMediaRecorderAsync();
 void tearDownEgl();
 void closeOutput();
 void closeInput();
 void waitForNextFrame();
 void sigpipeHandler(int param);
+void sigusr1Handler(int param);
 void screenshotUpdate(int reqWidth, int reqHeight);
+const char* getThreadName();
 
 // OpenGL helpers
 void checkGlError(const char* op, bool critical);
 void checkGlError(const char* op);
 GLuint loadShader(GLenum shaderType, const char* pSource);
 GLuint createProgram(const char* pVertexSource, const char* pFragmentSource);
+
+class SCRListener : public MediaRecorderListener
+{
+public:
+    SCRListener() : firstError(true) {};
+    void notify(int msg, int ext1, int ext2);
+private:
+    volatile bool firstError;
+};
 
 #endif
