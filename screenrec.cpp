@@ -395,21 +395,18 @@ void setupGl() {
         texCoordinates[7] = hTexPortion;
         texCoordinates[9] = wTexPortion;
         texCoordinates[10] = hTexPortion;
-
-
-        GLfloat wVideoPortion = (GLfloat) (videoWidth - 2 * paddingWidth) / (GLfloat) videoWidth;
-        GLfloat hVideoPortion = (GLfloat) (videoHeight - 2 * paddingHeight) / (GLfloat) videoHeight;
-
-        vertices[0] *= hVideoPortion;
-        vertices[3] *= hVideoPortion;
-        vertices[6] *= hVideoPortion;
-        vertices[9] *= hVideoPortion;
-        vertices[1] *= wVideoPortion;
-        vertices[4] *= wVideoPortion;
-        vertices[7] *= wVideoPortion;
-        vertices[10]*= wVideoPortion;
-
     }
+
+    GLfloat wVideoPortion = (GLfloat) (videoWidth - 2 * paddingWidth) / (GLfloat) videoWidth;
+    GLfloat hVideoPortion = (GLfloat) (videoHeight - 2 * paddingHeight) / (GLfloat) videoHeight;
+    vertices[0] *= hVideoPortion;
+    vertices[3] *= hVideoPortion;
+    vertices[6] *= hVideoPortion;
+    vertices[9] *= hVideoPortion;
+    vertices[1] *= wVideoPortion;
+    vertices[4] *= wVideoPortion;
+    vertices[7] *= wVideoPortion;
+    vertices[10]*= wVideoPortion;
 
     glViewport(0, 0, videoWidth, videoHeight);
     checkGlError("glViewport");
