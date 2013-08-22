@@ -63,14 +63,15 @@ int main(int argc, char* argv[]) {
     getRotation();
     getAudioSetting();
     getResolution();
+    getPadding();
     getFrameRate();
     getUseGl();
     getColorFormat();
     getVideoBitrate();
     getAudioSamplingRate();
 
-    ALOGI("SETTINGS rotation: %d, micAudio: %s, resolution: %d x %d, frameRate: %d, mode: %s, colorFix: %s",
-          rotation, micAudio ? "true" : "false", reqWidth, reqHeight, frameRate, useGl ? "GPU" : "CPU", colorMatrix == rgbaMatrix ? "false" : "true");
+    ALOGI("SETTINGS rotation: %d, micAudio: %s, resolution: %d x %d, padding: %d x %d, frameRate: %d, mode: %s, colorFix: %s",
+          rotation, micAudio ? "true" : "false", reqWidth, reqHeight, paddingWidth, paddingHeight, frameRate, useGl ? "GPU" : "CPU", colorMatrix == rgbaMatrix ? "false" : "true");
 
     printf("configured\n");
     fflush(stdout);
@@ -136,6 +137,15 @@ void getResolution() {
     fgets(height, 16, stdin);
     reqWidth = atoi(width);
     reqHeight = atoi(height);
+}
+
+void getPadding() {
+    char width[16];
+    char height[16];
+    fgets(width, 16, stdin);
+    fgets(height, 16, stdin);
+    paddingWidth = atoi(width);
+    paddingHeight = atoi(height);
 }
 
 void getFrameRate() {
@@ -273,12 +283,12 @@ void setupInput() {
 #endif // SCR_FB
 
     if (inputWidth > inputHeight) {
-        videoWidth = inputWidth;
-        videoHeight = inputHeight;
+        videoWidth = inputWidth + 2 * paddingWidth;
+        videoHeight = inputHeight + 2 * paddingHeight;
         rotateView = false;
     } else {
-        videoWidth = inputHeight;
-        videoHeight = inputWidth;
+        videoWidth = inputHeight + 2 * paddingWidth;
+        videoHeight = inputWidth + 2 * paddingHeight;
         rotateView = true;
     }
 }
@@ -378,13 +388,27 @@ void setupGl() {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, mPixels);
         checkGlError("glTexImage2D", true);
         
-        GLfloat wFillPortion = inputStride/(float)texWidth;
-        GLfloat hFillPortion = inputHeight/(float)texHeight;
+        GLfloat wTexPortion = inputStride/(float)texWidth;
+        GLfloat hTexPortion = inputHeight/(float)texHeight;
 
-        texCoordinates[3] = wFillPortion;
-        texCoordinates[7] = hFillPortion;
-        texCoordinates[9] = wFillPortion;
-        texCoordinates[10] = hFillPortion;
+        texCoordinates[3] = wTexPortion;
+        texCoordinates[7] = hTexPortion;
+        texCoordinates[9] = wTexPortion;
+        texCoordinates[10] = hTexPortion;
+
+
+        GLfloat wVideoPortion = (GLfloat) (videoWidth - 2 * paddingWidth) / (GLfloat) videoWidth;
+        GLfloat hVideoPortion = (GLfloat) (videoHeight - 2 * paddingHeight) / (GLfloat) videoHeight;
+
+        vertices[0] *= hVideoPortion;
+        vertices[3] *= hVideoPortion;
+        vertices[6] *= hVideoPortion;
+        vertices[9] *= hVideoPortion;
+        vertices[1] *= wVideoPortion;
+        vertices[4] *= wVideoPortion;
+        vertices[7] *= wVideoPortion;
+        vertices[10]*= wVideoPortion;
+
     }
 
     glViewport(0, 0, videoWidth, videoHeight);
@@ -547,15 +571,15 @@ void renderFrameCPU() {
 
     if (rotateView) {
         if (colorMatrix == rgbaMatrix) {
-            for (int y = 0; y < videoHeight; y++) {
-                for (int x = 0; x < videoWidth; x++) {
-                    bufPixels[y * stride + x] = screen[x * inputStride + videoHeight - y - 1];
+            for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
+                for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
+                    bufPixels[y * stride + x] = screen[(x - paddingWidth) * inputStride + videoHeight - paddingHeight - y - 1];
                 }
             }
         } else {
-            for (int y = 0; y < videoHeight; y++) {
-                for (int x = 0; x < videoWidth; x++) {
-                    uint32_t color = screen[x * inputStride + videoHeight - y - 1];
+            for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
+                for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
+                    uint32_t color = screen[(x - paddingWidth) * inputStride + videoHeight - paddingHeight - y - 1];
                     bufPixels[y * stride + x] = (color & 0xFF00FF00) | ((color >> 16) & 0x000000FF) | ((color << 16) & 0x00FF0000);
                 }
             }
@@ -567,15 +591,15 @@ void renderFrameCPU() {
         } else {
             //TODO: test on some device with this screen orientation
             if (colorMatrix == rgbaMatrix) {
-                for (int y = 0; y < videoHeight; y++) {
-                    for (int x = 0; x < videoWidth; x++) {
-                        bufPixels[y * stride + x] = screen[y * inputStride + x];
+                for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
+                    for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
+                        bufPixels[y * stride + x] = screen[(y - paddingHeight) * inputStride + (x - paddingWidth)];
                     }
                 }
             } else {
-                for (int y = 0; y < videoHeight; y++) {
-                    for (int x = 0; x < videoWidth; x++) {
-                        uint32_t color = screen[y * inputStride + x];
+                for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
+                    for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
+                        uint32_t color = screen[(y - paddingHeight) * inputStride + (x - paddingWidth)];
                         bufPixels[y * stride + x] = (color & 0xFF00FF00) | ((color >> 16) & 0x000000FF) | ((color << 16) & 0x00FF0000);
                     }
                 }
@@ -600,7 +624,7 @@ void renderFrameCPU() {
 void renderFrameGl() {
     updateInput();
 
-    glClearColor(0, 0.9, 0.7, 0.6);
+    glClearColor(0.0, 0.0, 0.0, 0.0);
     glClear(GL_COLOR_BUFFER_BIT);
 
     if (!useOes) {
