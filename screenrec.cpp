@@ -562,8 +562,25 @@ void renderFrameCPU() {
         }
 
     } else {
-        //TODO: copy by row if buf->width != buf->stride
-        memcpy(bufPixels, screen, videoWidth * videoHeight * 4);
+        if (videoWidth == stride && colorMatrix == rgbaMatrix) {
+            memcpy(bufPixels, screen, videoWidth * videoHeight * 4);
+        } else {
+            //TODO: test on some device with this screen orientation
+            if (colorMatrix == rgbaMatrix) {
+                for (int y = 0; y < videoHeight; y++) {
+                    for (int x = 0; x < videoWidth; x++) {
+                        bufPixels[y * stride + x] = screen[y * inputStride + x];
+                    }
+                }
+            } else {
+                for (int y = 0; y < videoHeight; y++) {
+                    for (int x = 0; x < videoWidth; x++) {
+                        uint32_t color = screen[y * inputStride + x];
+                        bufPixels[y * stride + x] = (color & 0xFF00FF00) | ((color >> 16) & 0x000000FF) | ((color << 16) & 0x00FF0000);
+                    }
+                }
+            }
+        }
     }
 
     buf->unlock();
