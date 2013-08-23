@@ -95,25 +95,11 @@ int main(int argc, char* argv[]) {
     timespec frameEnd;
     targetFrameTime = 1000000 / frameRate;
 
-#ifdef SCR_FREE
-    int framesLeft = frameRate * 60 * 4;
-    if (videoHeight <= 480 && !restrictFrameRate) {
-        framesLeft = framesLeft * 4;
-    }
-#endif
-
     while (mrRunning && !finished) {
         if (restrictFrameRate) {
             waitForNextFrame();
         }
-
         renderFrame();
-#ifdef SCR_FREE
-        if (--framesLeft == 0) {
-            stop(220, "Maximum recording time reached");
-        }
-#endif
-
     }
 
     if (!stopping) {
@@ -467,6 +453,9 @@ void setupMediaRecorder() {
     mr->setVideoFrameRate(frameRate);
     mr->setParameters(String8::format("video-param-rotation-angle-degrees=%d", rotation));
     mr->setParameters(String8::format("video-param-encoding-bitrate=%d", videoBitrate));
+    #ifdef SCR_FREE
+    mr->setParameters(String8::format("max-duration=200000"));
+    #endif
     mr->prepare();
 
     ALOGV("Starting MediaRecorder...");
