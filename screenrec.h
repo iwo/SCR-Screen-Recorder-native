@@ -194,6 +194,7 @@ void getAudioSamplingRate();
 void setupMediaRecorder();
 void* commandThreadStart(void* args);
 void listenForCommand();
+void interruptCommandThread();
 void renderFrame();
 void renderFrameGl();
 void renderFrameCPU();

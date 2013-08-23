@@ -58,6 +58,7 @@ int main(int argc, char* argv[]) {
     prctl(PR_SET_PDEATHSIG, SIGKILL);
 
     mainThread = pthread_self();
+    commandThread = mainThread; // will be changed when command thread is started
 
     getOutputName();
     getRotation();
@@ -75,6 +76,7 @@ int main(int argc, char* argv[]) {
 
     printf("configured\n");
     fflush(stdout);
+
     setupOutput();
     setupInput();
     adjustRotation();
@@ -111,21 +113,22 @@ int main(int argc, char* argv[]) {
             stop(220, "Maximum recording time reached");
         }
 #endif
+
     }
 
     if (!stopping) {
         stop(0, "finished");
     }
 
-    ALOGV("Interrupting command thread");
-    pthread_kill(commandThread, SIGUSR1);
+    interruptCommandThread();
 
     return errorCode;
 }
 
 void getOutputName() {
     if (fgets(outputName, 512, stdin) == NULL) {
-        stop(200, "No output file specified");
+        ALOGV("cancelled");
+        exit(200);
     }
     trim(outputName);
 }
@@ -506,7 +509,15 @@ void* commandThreadStart(void* args) {
     memset(command,'\0', 16);
     read(fileno(stdin), command, 15);
     finished = true;
+    commandThread = mainThread; // reset command thread id to indicate that it's stopped
     return NULL;
+}
+
+void interruptCommandThread() {
+    if (!pthread_equal(commandThread, mainThread)) {
+        ALOGV("Interrupting command thread");
+        pthread_kill(commandThread, SIGUSR1);
+    }
 }
 
 void renderFrame() {
@@ -743,6 +754,12 @@ void stop(int error, bool fromMainThread, const char* message) {
         tearDownEgl();
     closeOutput();
     closeInput();
+
+    interruptCommandThread();
+
+    if (fromMainThread) {
+        exit(errorCode);
+    }
 }
 
 
@@ -896,15 +913,16 @@ void sigusr1Handler(int param) {
 
 const char* getThreadName() {
     pthread_t threadId = pthread_self();
-    if (threadId == commandThread) {
-        return "command";
-    }
-    if (threadId == stoppingThread) {
-        return "stopping";
-    }
-    if (threadId == mainThread) {
+    if (pthread_equal(threadId, mainThread)) {
         return "main";
     }
+    if (pthread_equal(threadId, commandThread)) {
+        return "command";
+    }
+    if (pthread_equal(threadId, stoppingThread)) {
+        return "stopping";
+    }
+
     return "other";
 }
 
