@@ -17,15 +17,16 @@ void setupOutput() {
     }
 
     /* put sample parameters */
-    c->bit_rate = 2000000;
+    c->bit_rate = videoBitrate;
     /* resolution must be a multiple of two */
-    c->width = videoWidth;
-    c->height = videoHeight;
+    c->width = videoHeight;
+    c->height = videoWidth;
     /* frames per second */
     c->time_base= (AVRational){1,25};
     c->gop_size = 10; /* emit one intra frame every ten frames */
     c->max_b_frames=1;
     c->pix_fmt = AV_PIX_FMT_YUV420P;
+    c->thread_count = 4;
 
     /* open it */
     if (avcodec_open2(c, codec, NULL) < 0) {
@@ -48,13 +49,6 @@ void setupOutput() {
     inframe->width  = c->width;
     inframe->height = c->height;
 
-    ret = av_image_alloc(inframe->data, inframe->linesize, inframe->width, inframe->height,
-                         AV_PIX_FMT_RGB32, 32);
-    if (ret < 0) {
-        fprintf(stderr, "Could not allocate raw picture buffer\n");
-        exit(1);
-    }
-
     frame = avcodec_alloc_frame();
     if (!frame) {
         fprintf(stderr, "Could not allocate video frame\n");
@@ -75,24 +69,19 @@ void setupOutput() {
 }
 
 void renderFrame() {
+    updateInput();
     int ret, x, y, got_output;
     av_init_packet(&pkt);
     pkt.data = NULL;    // packet data will be allocated by the encoder
     pkt.size = 0;
 
-    fflush(stdout);
-    /* prepare a dummy image */
-    for(y=0; y < inframe->height; y++) {
-        for(x=0; x < inframe->width; x++) {
-            inframe->data[0][y * inframe->linesize[0] + x * 4 + 2] = x % 255;  // R
-            inframe->data[0][y * inframe->linesize[0] + x * 4 + 1] = y % 255;  // G
-            inframe->data[0][y * inframe->linesize[0] + x * 4] = frame_count % 255;      // B
-        }
-    }
+    AVPixelFormat inFormat = useBGRA ? PIX_FMT_RGB32 : PIX_FMT_BGR32; // I have no idea why it needs to be inverted
+
+    avpicture_fill((AVPicture*)inframe, (uint8_t*)inputBase, inFormat, inputStride, inputHeight);
 
     frame->pts = frame_count++;
 
-    struct SwsContext* swsContext = sws_getContext(inframe->width, inframe->height, PIX_FMT_RGB32, c->width, c->height, PIX_FMT_YUV420P, SWS_FAST_BILINEAR, NULL, NULL, NULL);
+    struct SwsContext* swsContext = sws_getContext(inframe->width, inframe->height, inFormat, c->width, c->height, PIX_FMT_YUV420P, SWS_FAST_BILINEAR, NULL, NULL, NULL);
     sws_scale(swsContext, inframe->data, inframe->linesize, 0, c->height, frame->data, frame->linesize);
 
     /* encode the image */
