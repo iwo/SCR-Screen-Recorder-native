@@ -18,7 +18,9 @@ LOCAL_CFLAGS := -DSCR_SDK_VERSION=$(PLATFORM_SDK_VERSION) -DSCR_FREE
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_SRC_FILES := \
-    screenrec.cpp \
+    mediarecorder_output.cpp \
+    capture.cpp \
+    main.cpp \
 
 LOCAL_SHARED_LIBRARIES := $(MY_SHARED_LIBRARIES)
 
@@ -33,7 +35,9 @@ LOCAL_CFLAGS := -DSCR_SDK_VERSION=$(PLATFORM_SDK_VERSION) -DSCR_FREE -DSCR_FB
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_SRC_FILES := \
-    screenrec.cpp \
+    mediarecorder_output.cpp \
+    capture.cpp \
+    main.cpp \
 
 LOCAL_SHARED_LIBRARIES := $(MY_SHARED_LIBRARIES)
 
@@ -48,7 +52,9 @@ LOCAL_CFLAGS := -DSCR_SDK_VERSION=$(PLATFORM_SDK_VERSION)
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_SRC_FILES := \
-    screenrec.cpp \
+    mediarecorder_output.cpp \
+    capture.cpp \
+    main.cpp \
 
 LOCAL_SHARED_LIBRARIES := $(MY_SHARED_LIBRARIES)
 
@@ -62,7 +68,9 @@ LOCAL_CFLAGS := -DSCR_SDK_VERSION=$(PLATFORM_SDK_VERSION) -DSCR_FB
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_SRC_FILES := \
-    screenrec.cpp \
+    mediarecorder_output.cpp \
+    capture.cpp \
+    main.cpp \
 
 LOCAL_SHARED_LIBRARIES := $(MY_SHARED_LIBRARIES)
 

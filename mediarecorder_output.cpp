@@ -1,7 +1,5 @@
-#define LOG_NDEBUG 0
-#define LOG_TAG "screenrec"
-
 #include "screenrec.h"
+#include "mediarecorder_output.h"
 
 using namespace android;
 
@@ -48,244 +46,18 @@ static EGLint eglContextAttribs[] = {
             EGL_CONTEXT_CLIENT_VERSION, 2,
             EGL_NONE };
 
-int main(int argc, char* argv[]) {
-    ProcessState::self()->startThreadPool();
-    printf("ready\n");
-    fflush(stdout);
-
-    signal(SIGPIPE, sigpipeHandler);
-    signal(SIGUSR1, sigusr1Handler);
-    prctl(PR_SET_PDEATHSIG, SIGKILL);
-
-    mainThread = pthread_self();
-    commandThread = mainThread; // will be changed when command thread is started
-
-    getOutputName();
-    getRotation();
-    getAudioSetting();
-    getResolution();
-    getPadding();
-    getFrameRate();
-    getUseGl();
-    getColorFormat();
-    getVideoBitrate();
-    getAudioSamplingRate();
-
-    ALOGI("SETTINGS rotation: %d, micAudio: %s, resolution: %d x %d, padding: %d x %d, frameRate: %d, mode: %s, colorFix: %s",
-          rotation, micAudio ? "true" : "false", reqWidth, reqHeight, paddingWidth, paddingHeight, frameRate, useGl ? "GPU" : "CPU", colorMatrix == rgbaMatrix ? "false" : "true");
-
-    printf("configured\n");
-    fflush(stdout);
-
-    setupOutput();
-    setupInput();
-    adjustRotation();
-    if (useGl)
-        setupEgl();
-    setupMediaRecorder();
-    if (useGl)
-        setupGl();
-    listenForCommand();
-
-    printf("recording\n");
-    fflush(stdout);
-    ALOGV("Setup finished. Starting rendering loop.");
-
-    timespec frameStart;
-    timespec frameEnd;
-    targetFrameTime = 1000000 / frameRate;
-
-    while (mrRunning && !finished) {
-        if (restrictFrameRate) {
-            waitForNextFrame();
-        }
-        renderFrame();
-    }
-
-    if (!stopping) {
-        stop(0, "finished");
-    }
-
-    interruptCommandThread();
-
-    return errorCode;
-}
-
-void getOutputName() {
-    if (fgets(outputName, 512, stdin) == NULL) {
-        ALOGV("cancelled");
-        exit(200);
-    }
-    trim(outputName);
-}
-
-void getResolution() {
-    char width[16];
-    char height[16];
-    fgets(width, 16, stdin);
-    fgets(height, 16, stdin);
-    reqWidth = atoi(width);
-    reqHeight = atoi(height);
-}
-
-void getPadding() {
-    char width[16];
-    char height[16];
-    fgets(width, 16, stdin);
-    fgets(height, 16, stdin);
-    paddingWidth = atoi(width);
-    paddingHeight = atoi(height);
-}
-
-void getFrameRate() {
-    char fps[16];
-    fgets(fps, 16, stdin);
-    frameRate = atoi(fps);
-    if (frameRate == -1) {
-        restrictFrameRate = false;
-        frameRate = FRAME_RATE;
-    } else if (frameRate <= 0 || frameRate > 100) {
-        frameRate = FRAME_RATE;
-    }
-}
-
-void getUseGl() {
-    char mode[8];
-    if (fgets(mode, 8, stdin) != NULL) {
-        if (mode[0] == 'C') { //CPU
-            useGl = false;
-        } else if (mode[0] == 'O') { //OES
-            #if SCR_SDK_VERSION >= 18
-            useOes = true;
-            #endif
-        }
-    }
-}
-
-void getColorFormat() {
-    colorMatrix = rgbaMatrix;
-    char mode[8];
-    if (fgets(mode, 8, stdin) != NULL) {
-        if (mode[0] == 'B') { //BGRA
-            colorMatrix = bgraMatrix;
-        }
-    }
-}
-
-void getVideoBitrate() {
-    char bitrate[16];
-    fgets(bitrate, 16, stdin);
-    videoBitrate = atoi(bitrate);
-
-    if (videoBitrate == 0) {
-        videoBitrate = 10000000;
-    }
-}
-
-void getAudioSamplingRate() {
-    char sampling[16];
-    fgets(sampling, 16, stdin);
-    audioSamplingRate = atoi(sampling);
-
-    if (audioSamplingRate == 0) {
-        audioSamplingRate = 16000;
-    }
-}
 
 void setupOutput() {
     outputFd = open(outputName, O_RDWR | O_CREAT, 0744);
     if (outputFd < 0) {
         stop(201, "Could not open the output file");
     }
-}
 
-void trim(char* str) {
-    while (*str) {
-        if (*str == '\n') {
-            *str = '\0';
-        }
-        str++;
-    }
-}
-
-void setupInput() {
-#ifdef SCR_FB
-    ALOGV("Setting up FB mmap");
-    const char* fbpath = "/dev/graphics/fb0";
-    fbFd = open(fbpath, O_RDONLY);
-
-    if (fbFd < 0) {
-        stop(202, "Error opening FB device");
-    }
-
-    if (ioctl(fbFd, FBIOGET_VSCREENINFO, &fbInfo) != 0) {
-        stop(203, "FB ioctl failed");
-    }
-
-    int bytespp = fbInfo.bits_per_pixel / 8;
-
-    size_t mapsize, size;
-    size_t offset = (fbInfo.xoffset + fbInfo.yoffset * fbInfo.xres) * bytespp;
-    inputWidth = fbInfo.xres;
-    inputHeight = fbInfo.yres;
-    inputStride = inputWidth;
-    ALOGV("FB width: %d hieght: %d bytespp: %d", inputWidth, inputHeight, bytespp);
-
-    size = inputWidth * inputHeight * bytespp;
-
-    mapsize = size * 4; // For triple buffering 3 should be enough, setting to 4 for padding
-    fbMapBase = mmap(0, mapsize, PROT_READ, MAP_SHARED, fbFd, 0);
-    if (fbMapBase == MAP_FAILED) {
-        stop(204, "mmap failed");
-    }
-    inputBase = (void const *)((char const *)fbMapBase + offset);
-#else
-    #if SCR_SDK_VERSION >= 17
-    display = SurfaceComposerClient::getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain);
-    if (display == NULL) {
-        stop(205, "Can't access display");
-    }
-    if (screenshot.update(display) != NO_ERROR) {
-        stop(217, "screenshot.update() failed");
-    }
-    #else
-    if (screenshot.update() != NO_ERROR) {
-        stop(217, "screenshot.update() failed");
-    }
-    #endif // SCR_SDK_VERSION
-
-    if ((screenshot.getWidth() < screenshot.getHeight()) != (reqWidth < reqHeight)) {
-        ALOGI("swapping dimensions");
-        int tmp = reqWidth;
-        reqWidth = reqHeight;
-        reqHeight = tmp;
-    }
-    screenshotUpdate(reqWidth, reqHeight);
-    inputWidth = screenshot.getWidth();
-    inputHeight = screenshot.getHeight();
-    inputStride = screenshot.getStride();
-    if (useOes) {
-        screenshot.release();
-    }
-    ALOGV("Screenshot width: %d, height: %d, stride: %d, format %d, size: %d", inputWidth, inputHeight, inputStride, screenshot.getFormat(), screenshot.getSize());
-
-#endif // SCR_FB
-
-    if (inputWidth > inputHeight) {
-        videoWidth = inputWidth + 2 * paddingWidth;
-        videoHeight = inputHeight + 2 * paddingHeight;
-        rotateView = false;
-    } else {
-        videoWidth = inputHeight + 2 * paddingWidth;
-        videoHeight = inputWidth + 2 * paddingHeight;
-        rotateView = true;
-    }
-}
-
-void adjustRotation() {
-    if (rotateView) {
-        rotation = (rotation + 90) % 360;
-    }
+    if (useGl)
+        setupEgl();
+    setupMediaRecorder();
+    if (useGl)
+        setupGl();
 }
 
 void setupEgl() {
@@ -397,6 +169,8 @@ void setupGl() {
     vertices[7] *= wVideoPortion;
     vertices[10]*= wVideoPortion;
 
+    colorMatrix = useBGRA ? bgraMatrix : rgbaMatrix;
+
     glViewport(0, 0, videoWidth, videoHeight);
     checkGlError("glViewport");
 }
@@ -407,26 +181,6 @@ int getTexSize(int size) {
         texSize = texSize * 2;
     }
     return texSize;
-}
-
-void getRotation() {
-    char rot[8];
-    if (fgets(rot, 8, stdin) == NULL) {
-        stop(219, "No rotation specified");
-    }
-    rotation = atoi(rot);
-}
-
-void getAudioSetting() {
-    char audio[8];
-    if (fgets(audio, 8, stdin) == NULL) {
-        stop(221, "No audio setting specified");
-    }
-    if (audio[0] == 'm') {
-        micAudio = true;
-    } else {
-        micAudio = false;
-    }
 }
 
 // Set up the MediaRecorder which runs in the same process as mediaserver
@@ -484,29 +238,6 @@ void setupMediaRecorder() {
         }
     }
     #endif
-}
-
-
-void listenForCommand() {
-    if (pthread_create(&commandThread, NULL, &commandThreadStart, NULL) != 0){
-        stop(216, "Can't start command thread");
-    }
-}
-
-void* commandThreadStart(void* args) {
-    char command [16];
-    memset(command,'\0', 16);
-    read(fileno(stdin), command, 15);
-    finished = true;
-    commandThread = mainThread; // reset command thread id to indicate that it's stopped
-    return NULL;
-}
-
-void interruptCommandThread() {
-    if (!pthread_equal(commandThread, mainThread)) {
-        ALOGV("Interrupting command thread");
-        pthread_kill(commandThread, SIGUSR1);
-    }
 }
 
 void renderFrame() {
@@ -567,7 +298,7 @@ void renderFrameCPU() {
     int stride = buf->stride;
 
     if (rotateView) {
-        if (colorMatrix == rgbaMatrix) {
+        if (!useBGRA) {
             for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
                 for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
                     bufPixels[y * stride + x] = screen[(x - paddingWidth) * inputStride + videoHeight - paddingHeight - y - 1];
@@ -583,11 +314,11 @@ void renderFrameCPU() {
         }
 
     } else {
-        if (videoWidth == stride && colorMatrix == rgbaMatrix) {
+        if (videoWidth == stride && !useBGRA) {
             memcpy(bufPixels, screen, videoWidth * videoHeight * 4);
         } else {
             //TODO: test on some device with this screen orientation
-            if (colorMatrix == rgbaMatrix) {
+            if (!useBGRA) {
                 for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
                     for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
                         bufPixels[y * stride + x] = screen[(y - paddingHeight) * inputStride + (x - paddingWidth)];
@@ -644,15 +375,7 @@ void renderFrameGl() {
     glEnableVertexAttribArray(mTexCoordHandle);
     checkGlError("vertexAttrib");
 
-    #if SCR_SDK_VERSION >= 18 && !defined SCR_FB
-    if (useOes) {
-        if (glConsumer->updateTexImage() != NO_ERROR) {
-            if (!stopping) {
-                stop(226, "texture update failed");
-            }
-        }
-    }
-    #endif
+    updateTexImage();
 
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     checkGlError("glDrawArrays");
@@ -665,92 +388,16 @@ void renderFrameGl() {
     }
 }
 
-void updateInput() {
-#ifdef SCR_FB
-    // it's still flickering, maybe ioctl(fd, FBIO_WAITFORVSYNC, &crt); would help
-    if (ioctl(fbFd, FBIOGET_VSCREENINFO, &fbInfo) != 0) {
-        stop(223, "FB ioctl failed");
-    }
-    int bytespp = fbInfo.bits_per_pixel / 8;
-    size_t offset = (fbInfo.xoffset + fbInfo.yoffset * fbInfo.xres) * bytespp;
-    inputBase = (void const *)((char const *)fbMapBase + offset);
-#else
-
-    if (useOes) {
-        #if SCR_SDK_VERSION >= 18
-        if (glConsumer.get() != NULL) {
-            glConsumer.clear();
-        }
-        glConsumer = new GLConsumer(1);
-        glConsumer->setName(String8("scr_consumer"));
-             if (ScreenshotClient::capture(display, glConsumer->getBufferQueue(),
-                reqWidth, reqHeight, 0, -1) != NO_ERROR) {
-            stop(227, "capture failed");
-        }
-        #endif // SCR_SDK_VERSION >= 18
-    } else {
-        screenshotUpdate(reqWidth, reqHeight);
-        inputBase = screenshot.getPixels();
-    }
-#endif
-}
-
-void screenshotUpdate(int reqWidth, int reqHeight) {
-    #ifndef SCR_FB
-    #if SCR_SDK_VERSION >= 18
-        screenshot.release();
-    #endif
-    #if SCR_SDK_VERSION >= 17
-    if (screenshot.update(display, reqWidth, reqHeight) != NO_ERROR) {
-        stop(217, "update failed");
-    }
-    #else
-    if (screenshot.update(reqWidth, reqHeight) != NO_ERROR) {
-        stop(217, "update failed");
-    }
-    #endif // SCR_SDK_VERSION
-    #endif // ndef SCR_FB
-}
-
-void stop(int error, const char* message) {
-    stop(error, true, message);
-}
-
-void stop(int error, bool fromMainThread, const char* message) {
-
-    fprintf(stderr, "%d - stop requested from thread %s\n", error, getThreadName());
-    fflush(stderr);
-
-    if (error == 0) {
-        ALOGV("%s - stopping\n", message);
-    } else {
-        ALOGE("%d - stopping\n", error);
-    }
-
-    if (stopping) {
-        if (errorCode == 0 && error != 0) {
-            errorCode = error;
-        }
-        ALOGV("Already stopping");
-        return;
-    }
-
-    stopping = true;
-    errorCode = error;
-
+void closeOutput(bool fromMainThread) {
     tearDownMediaRecorder(fromMainThread);
     if (useGl)
         tearDownEgl();
-    closeOutput();
-    closeInput();
 
-    interruptCommandThread();
-
-    if (fromMainThread) {
-        exit(errorCode);
+    if (outputFd >= 0) {
+         close(outputFd);
+         outputFd = -1;
     }
 }
-
 
 void tearDownMediaRecorder(bool async) {
     if (mr.get() != NULL) {
@@ -821,44 +468,6 @@ void tearDownEgl() {
     }
 }
 
-void closeOutput() {
-    if (outputFd >= 0) {
-         close(outputFd);
-         outputFd = -1;
-    }
-}
-
-void closeInput() {
-#ifdef SCR_FB
-    if (fbFd >= 0) {
-        close(fbFd);
-    fbFd = -1;
-    }
-#endif // SCR_FB
-}
-
-void waitForNextFrame() {
-    timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    long usec = now.tv_nsec / 1000;
-
-    if (uLastFrame == -1) {
-        uLastFrame = usec;
-        return;
-    }
-
-    long time = usec - uLastFrame;
-    if (time < 0) {
-        time += 1000000;
-    }
-
-    uLastFrame = usec;
-
-    if (time < targetFrameTime) {
-        usleep(targetFrameTime - time);
-    }
-}
-
 void SCRListener::notify(int msg, int ext1, int ext2)
 {
     ALOGI("SCRListener %d %d %d, track: %d value: %d\n", msg, ext1, ext2, (ext1 >> 24), (ext1 && 0x0000FFFF));
@@ -888,31 +497,6 @@ void SCRListener::notify(int msg, int ext1, int ext2)
 
         ALOGV("SCRListener thread completed");
     }
-}
-
-void sigpipeHandler(int param) {
-    ALOGI("SIGPIPE received");
-    exit(222);
-}
-
-void sigusr1Handler(int param) {
-    ALOGV("SIGUSR1 received");
-    pthread_exit(0);
-}
-
-const char* getThreadName() {
-    pthread_t threadId = pthread_self();
-    if (pthread_equal(threadId, mainThread)) {
-        return "main";
-    }
-    if (pthread_equal(threadId, commandThread)) {
-        return "command";
-    }
-    if (pthread_equal(threadId, stoppingThread)) {
-        return "stopping";
-    }
-
-    return "other";
 }
 
 // OpenGL helpers
