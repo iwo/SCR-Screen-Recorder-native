@@ -453,16 +453,12 @@ void tearDownMediaRecorder(bool async) {
         }
         mr.clear();
     }
-    if (mSTC.get() != NULL) {
-        mSTC.clear();
-    }
     if (mANW.get() != NULL) {
         #if SCR_SDK_VERSION < 17
         if (!useGl) {
             native_window_api_disconnect(mANW.get(), NATIVE_WINDOW_API_CPU);
         }
         #endif
-        mANW.clear();
     }
 }
 
