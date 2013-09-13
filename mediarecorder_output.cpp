@@ -300,7 +300,12 @@ void renderFrameCPU() {
     // Fill the buffer
     uint32_t* bufPixels = NULL;
     uint32_t* screen = (uint32_t*) inputBase;
-    buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)(&bufPixels));
+    rv = buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)(&bufPixels));
+
+    if (rv != NO_ERROR) {
+        if (stopping) return;
+        stop(233, "buf->lock");
+    }
 
     int stride = buf->stride;
 
