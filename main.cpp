@@ -109,6 +109,12 @@ void getUseGl() {
             #if SCR_SDK_VERSION >= 18
             useOes = true;
             #endif
+        } else if (mode[0] == 'S') { // YUV_SP
+            useGl = false;
+            useYUV_SP = true;
+        } else if (mode[0] == 'P') { // YUV_P
+            useGl = false;
+            useYUV_P = true;
         }
     }
 }

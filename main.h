@@ -30,6 +30,8 @@ bool useOes = false;
 int videoBitrate;
 int audioSamplingRate;
 bool useBGRA = false;
+bool useYUV_P = false;
+bool useYUV_SP = false;
 
 // Output
 int outputFd;

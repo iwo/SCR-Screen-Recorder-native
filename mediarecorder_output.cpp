@@ -233,11 +233,18 @@ void setupMediaRecorder() {
         if (native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU) != NO_ERROR) {
             stop(224, "native_window_api_connect");
         }
-        if (native_window_set_buffers_format(mANW.get(), PIXEL_FORMAT_RGBA_8888) != NO_ERROR) {
-            stop(225, "native_window_set_buffers_format");
-        }
     }
     #endif
+
+    int format = PIXEL_FORMAT_RGBA_8888;
+    if (useYUV_P) {
+        format = HAL_PIXEL_FORMAT_YV12;
+    } else if (useYUV_SP) {
+        format = HAL_PIXEL_FORMAT_YCbCr_420_888;
+    }
+    if (native_window_set_buffers_format(mANW.get(), format) != NO_ERROR) {
+        stop(225, "native_window_set_buffers_format");
+    }
 }
 
 void renderFrame() {
@@ -298,39 +305,19 @@ void renderFrameCPU() {
     int stride = buf->stride;
 
     if (rotateView) {
-        if (!useBGRA) {
-            for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
-                for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
-                    bufPixels[y * stride + x] = screen[(x - paddingWidth) * inputStride + videoHeight - paddingHeight - y - 1];
-                }
-            }
+        if (useYUV_P || useYUV_SP) {
+            copyRotateYUVBuf((uint8_t*) bufPixels, (uint8_t*) screen, stride);
         } else {
-            for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
-                for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
-                    uint32_t color = screen[(x - paddingWidth) * inputStride + videoHeight - paddingHeight - y - 1];
-                    bufPixels[y * stride + x] = (color & 0xFF00FF00) | ((color >> 16) & 0x000000FF) | ((color << 16) & 0x00FF0000);
-                }
-            }
+            copyRotateBuf(bufPixels, screen, stride);
         }
-
     } else {
-        if (videoWidth == stride && !useBGRA) {
-            memcpy(bufPixels, screen, videoWidth * videoHeight * 4);
+        if (useYUV_P || useYUV_SP) {
+            stop(246, "not implemented");
         } else {
-            //TODO: test on some device with this screen orientation
-            if (!useBGRA) {
-                for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
-                    for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
-                        bufPixels[y * stride + x] = screen[(y - paddingHeight) * inputStride + (x - paddingWidth)];
-                    }
-                }
+            if (videoWidth == stride && !useBGRA) {
+                memcpy(bufPixels, screen, videoWidth * videoHeight * 4);
             } else {
-                for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
-                    for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
-                        uint32_t color = screen[(y - paddingHeight) * inputStride + (x - paddingWidth)];
-                        bufPixels[y * stride + x] = (color & 0xFF00FF00) | ((color >> 16) & 0x000000FF) | ((color << 16) & 0x00FF0000);
-                    }
-                }
+                copyBuf(bufPixels, screen, stride);
             }
         }
     }
@@ -346,6 +333,62 @@ void renderFrameCPU() {
     if (rv != NO_ERROR) {
         if (stopping) return;
         stop(245, "mANW->queueBuffer");
+    }
+}
+
+void copyRotateBuf(uint32_t* bufPixels, uint32_t* screen, int stride) {
+    for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
+        for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
+            uint32_t color = screen[(x - paddingWidth) * inputStride + videoHeight - paddingHeight - y - 1];
+            bufPixels[y * stride + x] = convertColor(color);
+        }
+    }
+}
+void copyBuf(uint32_t* bufPixels, uint32_t* screen, int stride) {
+    //TODO: test on some device with this screen orientation
+    for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
+        for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
+            uint32_t color = screen[(y - paddingHeight) * inputStride + (x - paddingWidth)];
+            bufPixels[y * stride + x] = convertColor(color);
+        }
+    }
+}
+
+static inline uint32_t convertColor(uint32_t color) {
+    if (useBGRA) {
+        return (color & 0xFF00FF00) | ((color >> 16) & 0x000000FF) | ((color << 16) & 0x00FF0000);
+    }
+    return color;
+}
+
+void copyRotateYUVBuf(uint8_t* yuvPixels, uint8_t* screen, int stride) {
+    for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
+        for (int y = videoHeight - paddingHeight - 1; y >= paddingHeight; y--) {
+            int idx = ((x - paddingWidth) * inputStride + videoHeight - paddingHeight - y - 1) * 4;
+            uint8_t r,g,b;
+            if (useBGRA) {
+                b = screen[idx];
+                g = screen[idx + 1];
+                r = screen[idx + 2];
+            } else {
+                r = screen[idx];
+                g = screen[idx + 1];
+                b = screen[idx + 2];
+            }
+            uint16_t Y = ( (  66 * r + 129 * g +  25 * b + 128) >> 8) +  16;
+            uint16_t U = ( ( -38 * r -  74 * g + 112 * b + 128) >> 8) + 128;
+            uint16_t V = ( ( 112 * r -  94 * g -  18 * b + 128) >> 8) + 128;
+            yuvPixels[y * stride + x] = Y;
+            if (y % 2 == 0 && x % 2 == 0) {
+                if (useYUV_P) {
+                    yuvPixels[videoHeight * stride + y * stride / 4 + x / 2 ] = U;
+                    yuvPixels[videoHeight * stride + videoHeight * stride / 4 + y * stride / 4 + x / 2 ] = V;
+                } else { // useYUV_SP
+                    yuvPixels[videoHeight * stride + y * stride / 2 + x ] = U;
+                    yuvPixels[videoHeight * stride + y * stride / 2 + x + 1] = V;
+                }
+            }
+        }
     }
 }
 

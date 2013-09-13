@@ -37,6 +37,8 @@ extern bool useOes;
 extern int videoBitrate;
 extern int audioSamplingRate;
 extern bool useBGRA;
+extern bool useYUV_P;
+extern bool useYUV_SP;
 
 
 // Output

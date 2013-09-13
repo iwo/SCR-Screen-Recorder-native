@@ -89,6 +89,10 @@ int getTexSize(int size);
 void setupMediaRecorder();
 void renderFrameGl();
 void renderFrameCPU();
+void copyRotateYUVBuf(uint8_t* yuvPixels, uint8_t* screen, int stride);
+void copyRotateBuf(uint32_t* bufPixels, uint32_t* screen, int stride);
+void copyBuf(uint32_t* bufPixels, uint32_t* screen, int stride);
+static inline uint32_t convertColor(uint32_t color);
 
 void tearDownMediaRecorder(bool async);
 void* stoppingThreadStart(void* args);
