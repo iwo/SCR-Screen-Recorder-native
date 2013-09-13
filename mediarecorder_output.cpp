@@ -235,12 +235,15 @@ void setupMediaRecorder() {
         }
     }
     #endif
-
     int format = PIXEL_FORMAT_RGBA_8888;
     if (useYUV_P) {
         format = HAL_PIXEL_FORMAT_YV12;
     } else if (useYUV_SP) {
+        #if SCR_SDK_VERSION < 18
+        format = HAL_PIXEL_FORMAT_YCrCb_420_SP;
+        #else
         format = HAL_PIXEL_FORMAT_YCbCr_420_888;
+        #endif
     }
     if (native_window_set_buffers_format(mANW.get(), format) != NO_ERROR) {
         stop(225, "native_window_set_buffers_format");
