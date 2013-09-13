@@ -312,7 +312,7 @@ void renderFrameCPU() {
         }
     } else {
         if (useYUV_P || useYUV_SP) {
-            stop(246, "not implemented");
+            stop(232, "not implemented");
         } else {
             if (videoWidth == stride && !useBGRA) {
                 memcpy(bufPixels, screen, videoWidth * videoHeight * 4);
