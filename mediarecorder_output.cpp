@@ -283,7 +283,10 @@ void renderFrameCPU() {
 
     if (rv != NO_ERROR) {
         if (stopping) return;
-        stop(242, "mANW->dequeueBuffer");
+        // stop(242, "mANW->dequeueBuffer");
+        // this happens when mediarecorder hangs on stop() so fore exit here
+        // stopping thread should be interrupted instead of this workaround
+        exit(242);
     }
 
     if (anb == NULL) {
