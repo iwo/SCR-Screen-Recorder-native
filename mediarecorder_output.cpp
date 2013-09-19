@@ -206,7 +206,9 @@ void setupMediaRecorder() {
     mr->setVideoSize(videoWidth, videoHeight);
     mr->setVideoFrameRate(frameRate);
     mr->setParameters(String8::format("video-param-rotation-angle-degrees=%d", rotation));
-    mr->setParameters(String8::format("video-param-encoding-bitrate=%d", videoBitrate));
+    if (videoBitrate > 0) {
+        mr->setParameters(String8::format("video-param-encoding-bitrate=%d", videoBitrate));
+    }
     #ifdef SCR_FREE
     mr->setParameters(String8::format("max-duration=200000"));
     #endif
