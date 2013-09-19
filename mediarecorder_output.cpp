@@ -196,7 +196,7 @@ void setupMediaRecorder() {
         mr->setAudioSource(AUDIO_SOURCE_MIC);
     }
     mr->setOutputFormat(OUTPUT_FORMAT_MPEG_4);
-    mr->setVideoEncoder(VIDEO_ENCODER_H264);
+    mr->setVideoEncoder(videoEncoder);
     if (micAudio) {
         mr->setAudioEncoder(AUDIO_ENCODER_AAC);
         mr->setParameters(String8::format("audio-param-sampling-rate=%d", audioSamplingRate));

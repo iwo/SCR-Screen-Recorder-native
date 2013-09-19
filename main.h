@@ -32,6 +32,7 @@ int audioSamplingRate;
 bool useBGRA = false;
 bool useYUV_P = false;
 bool useYUV_SP = false;
+int videoEncoder = 0;
 
 // Output
 int outputFd;
@@ -64,6 +65,7 @@ void getUseGl();
 void getColorFormat();
 void getVideoBitrate();
 void getAudioSamplingRate();
+void getVideoEncoder();
 void trim(char* str);
 void closeOutput();
 void closeInput();

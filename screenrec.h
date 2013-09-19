@@ -39,6 +39,7 @@ extern int audioSamplingRate;
 extern bool useBGRA;
 extern bool useYUV_P;
 extern bool useYUV_SP;
+extern int videoEncoder;
 
 
 // Output

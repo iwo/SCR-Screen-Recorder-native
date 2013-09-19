@@ -25,6 +25,7 @@ int main(int argc, char* argv[]) {
     getColorFormat();
     getVideoBitrate();
     getAudioSamplingRate();
+    getVideoEncoder();
 
     ALOGI("SETTINGS rotation: %d, micAudio: %s, resolution: %d x %d, padding: %d x %d, frameRate: %d, mode: %s, colorFix: %s",
           rotation, micAudio ? "true" : "false", reqWidth, reqHeight, paddingWidth, paddingHeight, frameRate, useGl ? "GPU" : "CPU", useBGRA ? "true" : "false");
@@ -146,6 +147,12 @@ void getAudioSamplingRate() {
     if (audioSamplingRate == 0) {
         audioSamplingRate = 16000;
     }
+}
+
+void getVideoEncoder() {
+    char encoder[4];
+    fgets(encoder, 4, stdin);
+    videoEncoder = atoi(encoder);
 }
 
 void trim(char* str) {
