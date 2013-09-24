@@ -6,7 +6,7 @@ void setupOutput() {
     //extern AVCodec ff_mpeg1video_encoder;
     //avcodec_register(&ff_mpeg1video_encoder);
 
-    codec = avcodec_find_encoder(AV_CODEC_ID_MPEG1VIDEO);
+    codec = avcodec_find_encoder(AV_CODEC_ID_MPEG4);
     if (!codec) {
         fprintf(stderr, "Codec not found\n");
         exit(1);
