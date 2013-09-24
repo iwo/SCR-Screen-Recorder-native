@@ -88,7 +88,7 @@ void setupOutput() {
         exit(1);
     }
 
-    frame->pts = 0;
+    ptsOffset = getTimeMs();
 
     mrRunning = true;
 }
@@ -112,8 +112,7 @@ void renderFrame() {
 
     frame_count++;
 
-    //frame->pts = av_rescale_q(frame_count++, videoStream->codec->time_base, videoStream->time_base);
-    frame->pts = av_rescale_q(getTimeMs(), (AVRational){1,1000}, videoStream->time_base);
+    frame->pts = av_rescale_q(getTimeMs() - ptsOffset, (AVRational){1,1000}, videoStream->time_base);
 
     struct SwsContext* swsContext = sws_getContext(inframe->width, inframe->height, inFormat, c->width, c->height, PIX_FMT_YUV420P, SWS_FAST_BILINEAR, NULL, NULL, NULL);
     sws_scale(swsContext, inframe->data, inframe->linesize, 0, c->height, frame->data, frame->linesize);

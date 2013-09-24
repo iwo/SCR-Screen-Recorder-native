@@ -27,5 +27,8 @@ AVFrame *frame, *inframe;
 AVPacket pkt;
 uint8_t endcode[] = { 0, 0, 1, 0xb7 };
 int frame_count = 1;
+int64_t ptsOffset = 0;
+
+int64_t getTimeMs();
 
 #endif
