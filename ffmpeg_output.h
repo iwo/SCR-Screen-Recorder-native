@@ -8,6 +8,7 @@
 extern "C" {
 #include <libavutil/opt.h>
 #include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
 #include <libavutil/channel_layout.h>
 #include <libavutil/common.h>
 #include <libavutil/imgutils.h>
@@ -18,7 +19,10 @@ extern "C" {
 
 AVCodec *codec;
 AVCodecContext *c= NULL;
-FILE *f;
+AVOutputFormat *fmt;
+AVFormatContext *oc;
+AVStream *videoStream;
+
 AVFrame *frame, *inframe;
 AVPacket pkt;
 uint8_t endcode[] = { 0, 0, 1, 0xb7 };
