@@ -40,6 +40,13 @@ void setupOutput() {
     c->thread_count = 4;
     c->mb_decision = 2;
 
+    int rot = rotateView ? (rotation + 270) % 360 : rotation;
+    if (rot) {
+        char value[16];
+        sprintf(value, "%d", rot);
+        av_dict_set(&videoStream->metadata, "rotate", value, 0);
+    }
+
     /* Some formats want stream headers to be separate. */
     if (oc->oformat->flags & AVFMT_GLOBALHEADER)
         c->flags |= CODEC_FLAG_GLOBAL_HEADER;
