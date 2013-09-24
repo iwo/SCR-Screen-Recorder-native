@@ -165,12 +165,11 @@ void closeOutput(bool fromMainThread) {
 
     av_write_trailer(oc);
 
-    avio_close(oc->pb);
-
     avcodec_close(c);
-    av_free(c);
     av_freep(&frame->data[0]);
     avcodec_free_frame(&frame);
+
+    avio_close(oc->pb);
 
     /* free the stream */
     avformat_free_context(oc);
