@@ -3,10 +3,12 @@
 void setupOutput() {
     int ret;
     //av_register_all();
-    extern AVCodec ff_mpeg1video_encoder;
-    avcodec_register(&ff_mpeg1video_encoder);
+    extern AVCodec ff_mpeg4_encoder;
+    avcodec_register(&ff_mpeg4_encoder);
     extern AVOutputFormat ff_mp4_muxer;
     av_register_output_format(&ff_mp4_muxer);
+    extern URLProtocol ff_file_protocol;
+    ffurl_register_protocol(&ff_file_protocol, sizeof(ff_file_protocol));
 
     codec = avcodec_find_encoder(AV_CODEC_ID_MPEG4);
     if (!codec) {
