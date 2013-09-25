@@ -34,8 +34,8 @@ void setupOutput() {
     /* put sample parameters */
     c->bit_rate = videoBitrate;
     /* resolution must be a multiple of two */
-    c->width = videoHeight;
-    c->height = videoWidth;
+    c->width = videoWidth;
+    c->height = videoHeight;
     /* frames per second */
     c->time_base= (AVRational){1,25};
     c->gop_size = 10; /* emit one intra frame every ten frames */
@@ -110,6 +110,32 @@ int64_t getTimeMs() {
     return now.tv_sec * 1000l + now.tv_nsec / 1000000l;
 }
 
+void copyRotateYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride) {
+    for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
+        for (int y = videoHeight - paddingHeight - 1; y >= paddingHeight; y--) {
+            int idx = ((x - paddingWidth) * inputStride + videoHeight - paddingHeight - y - 1) * 4;
+            uint8_t r,g,b;
+            if (useBGRA) {
+                b = screen[idx];
+                g = screen[idx + 1];
+                r = screen[idx + 2];
+            } else {
+                r = screen[idx];
+                g = screen[idx + 1];
+                b = screen[idx + 2];
+            }
+            uint16_t Y = ( (  66 * r + 129 * g +  25 * b + 128) >> 8) +  16;
+            yuvPixels[0][y * stride[0] + x] = Y;
+            if (y % 2 == 0 && x % 2 == 0) {
+                uint16_t U = ( ( -38 * r -  74 * g + 112 * b + 128) >> 8) + 128;
+                uint16_t V = ( ( 112 * r -  94 * g -  18 * b + 128) >> 8) + 128;
+                yuvPixels[1][y * stride[1] / 2 + x / 2 ] = U;
+                yuvPixels[2][y * stride[2] / 2 + x / 2 ] = V;
+            }
+        }
+    }
+}
+
 void renderFrame() {
     updateInput();
     int ret, x, y, got_output;
@@ -117,16 +143,10 @@ void renderFrame() {
     pkt.data = NULL;    // packet data will be allocated by the encoder
     pkt.size = 0;
 
-    AVPixelFormat inFormat = useBGRA ? PIX_FMT_RGB32 : PIX_FMT_BGR32; // I have no idea why it needs to be inverted
-
-    avpicture_fill((AVPicture*)inframe, (uint8_t*)inputBase, inFormat, inputStride, inputHeight);
-
     frame_count++;
-
     frame->pts = av_rescale_q(getTimeMs() - ptsOffset, (AVRational){1,1000}, videoStream->time_base);
 
-    struct SwsContext* swsContext = sws_getContext(inframe->width, inframe->height, inFormat, c->width, c->height, PIX_FMT_YUV420P, SWS_FAST_BILINEAR, NULL, NULL, NULL);
-    sws_scale(swsContext, inframe->data, inframe->linesize, 0, c->height, frame->data, frame->linesize);
+    copyRotateYUVBuf(frame->data, (uint8_t*)inputBase, frame->linesize);
 
     /* encode the image */
     ret = avcodec_encode_video2(c, &pkt, frame, &got_output);
@@ -173,6 +193,9 @@ void closeOutput(bool fromMainThread) {
             av_free_packet(&pkt);
         }
     }*/
+
+    fprintf(stderr, "avg fps %lld\n", frame_count * 1000 / (getTimeMs() - ptsOffset));
+    fflush(stderr);
 
     av_write_trailer(oc);
 
