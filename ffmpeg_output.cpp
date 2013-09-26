@@ -37,7 +37,7 @@ void setupOutput() {
     c->width = videoWidth;
     c->height = videoHeight;
     /* frames per second */
-    c->time_base= (AVRational){1,25};
+    c->time_base= (AVRational){1,10};
     c->gop_size = 10; /* emit one intra frame every ten frames */
     c->max_b_frames=1;
     c->pix_fmt = AV_PIX_FMT_YUV420P;
