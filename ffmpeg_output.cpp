@@ -44,7 +44,8 @@ void setupOutput() {
     c->thread_count = 4;
     c->mb_decision = 2;
 
-    int rot = rotateView ? (rotation + 270) % 360 : rotation;
+    //int rot = rotateView ? (rotation + 270) % 360 : rotation;
+    int rot = rotation;
     if (rot) {
         char value[16];
         sprintf(value, "%d", rot);
