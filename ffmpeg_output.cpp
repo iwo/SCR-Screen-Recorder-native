@@ -5,6 +5,8 @@ void setupOutput() {
     //av_register_all();
     extern AVCodec ff_mpeg4_encoder;
     avcodec_register(&ff_mpeg4_encoder);
+    extern AVCodec ff_aac_encoder;
+        avcodec_register(&ff_aac_encoder);
     extern AVOutputFormat ff_mp4_muxer;
     av_register_output_format(&ff_mp4_muxer);
     extern URLProtocol ff_file_protocol;
@@ -93,6 +95,8 @@ void setupOutput() {
         exit(1);
     }
 
+    setupAudio();
+
     /* Write the stream header, if any. */
     ret = avformat_write_header(oc, NULL);
     if (ret < 0) {
@@ -103,6 +107,107 @@ void setupOutput() {
     ptsOffset = getTimeMs();
 
     mrRunning = true;
+}
+
+void setupAudio() {
+    int ret;
+
+    audioCodec = avcodec_find_encoder(AV_CODEC_ID_AAC);
+    if (!codec) {
+        fprintf(stderr, "AAC Codec not found\n");
+        exit(1);
+    }
+
+    audioStream = avformat_new_stream(oc, audioCodec);
+    if (!audioStream) {
+        fprintf(stderr, "Could not allocate stream\n");
+        exit(1);
+    }
+
+    AVCodecContext *c = audioStream->codec;
+    c->sample_fmt  = AV_SAMPLE_FMT_FLTP;
+    c->bit_rate    = 64000;
+    c->sample_rate = 44100;
+    c->channels    = 1;
+    c->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
+
+    /* Some formats want stream headers to be separate. */
+    if (oc->oformat->flags & AVFMT_GLOBALHEADER)
+        c->flags |= CODEC_FLAG_GLOBAL_HEADER;
+
+    /* open it */
+    ret = avcodec_open2(c, audioCodec, NULL);
+    if (ret < 0) {
+        fprintf(stderr, "Could not open audio codec");
+        exit(1);
+    }
+
+    /* init signal generator */
+    t     = 0;
+    tincr = 2 * M_PI * 440.0 / c->sample_rate;
+
+    if (c->codec->capabilities & CODEC_CAP_VARIABLE_FRAME_SIZE)
+        audioFrameSize = 10000;
+    else
+        audioFrameSize = c->frame_size;
+
+    audioSamples = (float*) av_malloc(audioFrameSize *
+                        av_get_bytes_per_sample(c->sample_fmt) *
+                        c->channels);
+    if (!audioSamples) {
+        fprintf(stderr, "Could not allocate audio samples buffer\n");
+        exit(1);
+    }
+}
+
+static void getAudioFrame()
+{
+    for (int i = 0; i < audioFrameSize; i++) {
+        audioSamples[i] = sin(t) * 0.5;
+        t     += tincr;
+        //tincr += tincr2;
+    }
+}
+
+void writeAudioFrame() {
+    AVCodecContext *c;
+    AVPacket pkt;
+    AVFrame *frame = avcodec_alloc_frame();
+    int got_packet, ret;
+
+    av_init_packet(&pkt);
+    pkt.data = NULL;    // packet data will be allocated by the encoder
+    pkt.size = 0;
+    c = audioStream->codec;
+
+    getAudioFrame();
+    frame->nb_samples = audioFrameSize;
+    avcodec_fill_audio_frame(frame, c->channels, c->sample_fmt, (uint8_t *)audioSamples, audioFrameSize *
+                             av_get_bytes_per_sample(c->sample_fmt) *
+                             c->channels, 1);
+
+    ret = avcodec_encode_audio2(c, &pkt, frame, &got_packet);
+    if (ret < 0) {
+        fprintf(stderr, "Error encoding audio frame");
+        exit(1);
+    }
+
+    if (!got_packet)
+        return;
+
+    fprintf(stderr, "Write audio frame (size=%5d)\n", pkt.size);
+    fflush(stderr);
+
+    pkt.stream_index = audioStream->index;
+
+    /* Write the compressed frame to the media file. */
+    ret = av_interleaved_write_frame(oc, &pkt);
+    if (ret != 0) {
+        fprintf(stderr, "Error while writing audio frame");
+        exit(1);
+    }
+
+    avcodec_free_frame(&frame);
 }
 
 int64_t getTimeMs() {
@@ -145,7 +250,7 @@ void renderFrame() {
     pkt.size = 0;
 
     frame_count++;
-    frame->pts = av_rescale_q(getTimeMs() - ptsOffset, (AVRational){1,1000}, videoStream->time_base);
+    long pts = frame->pts = av_rescale_q(getTimeMs() - ptsOffset, (AVRational){1,1000}, videoStream->time_base);
 
     copyRotateYUVBuf(frame->data, (uint8_t*)inputBase, frame->linesize);
 
@@ -174,6 +279,16 @@ void renderFrame() {
 
         av_free_packet(&pkt);
     }
+
+    long audioPts = av_rescale_q(audioStream->pts.val, audioStream->time_base, videoStream->time_base);
+    while (audioPts < pts) {
+        fprintf(stderr, "%5ld<%5ld ", audioPts, pts);
+        fflush(stderr);
+        writeAudioFrame();
+        audioPts = av_rescale_q(audioStream->pts.val, audioStream->time_base, videoStream->time_base);
+    }
+    fprintf(stderr, "\n", audioPts, pts);
+    fflush(stderr);
 }
 
 void closeOutput(bool fromMainThread) {

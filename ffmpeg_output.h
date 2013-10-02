@@ -19,10 +19,16 @@ extern "C" {
 }
 
 AVCodec *codec;
+AVCodec *audioCodec;
 AVCodecContext *c= NULL;
 AVOutputFormat *fmt;
 AVFormatContext *oc;
 AVStream *videoStream;
+AVStream *audioStream;
+int audioFrameSize;
+float *audioSamples;
+
+float t, tincr, tincr2;
 
 AVFrame *frame, *inframe;
 AVPacket pkt;
@@ -31,5 +37,7 @@ int frame_count = 1;
 int64_t ptsOffset = 0;
 
 int64_t getTimeMs();
+void setupAudio();
+void writeAudioFrame();
 
 #endif
