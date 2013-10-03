@@ -106,6 +106,13 @@ void setupOutput() {
 
     ptsOffset = getTimeMs();
 
+    audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT);
+    ret = audioRecord->start();
+    if (ret != OK) {
+        fprintf(stderr, "Can't start audio source\n");
+        exit(0);
+    }
+
     mrRunning = true;
 }
 
@@ -127,7 +134,7 @@ void setupAudio() {
     AVCodecContext *c = audioStream->codec;
     c->sample_fmt  = AV_SAMPLE_FMT_FLTP;
     c->bit_rate    = 64000;
-    c->sample_rate = 44100;
+    c->sample_rate = audioSamplingRate;
     c->channels    = 1;
     c->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
 
@@ -160,13 +167,33 @@ void setupAudio() {
     }
 }
 
-static void getAudioFrame()
+static int getAudioFrame()
 {
-    for (int i = 0; i < audioFrameSize; i++) {
+    int samplesWritten = 0;
+    while (samplesWritten < audioFrameSize) {
+        AudioRecord::Buffer buffer;
+        status_t status = audioRecord->obtainBuffer(&buffer, 0);
+        if (status != NO_ERROR) {
+            fprintf(stderr, "break\n");
+            break;
+        }
+        fprintf(stderr, "Obtained buffer frameCount=%d size=%d\n", buffer.frameCount, buffer.size);
+        for (int i = 0; i < buffer.frameCount; i++) {
+            audioSamples[samplesWritten++] = (float)buffer.i16[i] / 30000.0;
+        }
+
+        audioRecord->releaseBuffer(&buffer);
+    }
+
+    return samplesWritten;
+
+    /*for (int i = 0; i < audioFrameSize; i++) {
         audioSamples[i] = sin(t) * 0.5;
         t     += tincr;
         //tincr += tincr2;
-    }
+    }*/
+
+
 }
 
 void writeAudioFrame() {
@@ -180,8 +207,7 @@ void writeAudioFrame() {
     pkt.size = 0;
     c = audioStream->codec;
 
-    getAudioFrame();
-    frame->nb_samples = audioFrameSize;
+    frame->nb_samples = getAudioFrame();
     avcodec_fill_audio_frame(frame, c->channels, c->sample_fmt, (uint8_t *)audioSamples, audioFrameSize *
                              av_get_bytes_per_sample(c->sample_fmt) *
                              c->channels, 1);
@@ -287,7 +313,7 @@ void renderFrame() {
         writeAudioFrame();
         audioPts = av_rescale_q(audioStream->pts.val, audioStream->time_base, videoStream->time_base);
     }
-    fprintf(stderr, "\n", audioPts, pts);
+    fprintf(stderr, "\n");
     fflush(stderr);
 }
 
@@ -323,6 +349,8 @@ void closeOutput(bool fromMainThread) {
 
     /* free the stream */
     avformat_free_context(oc);
+
+    audioRecord->stop();
 
     mrRunning = false;
 }

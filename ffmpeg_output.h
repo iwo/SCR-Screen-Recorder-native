@@ -5,6 +5,11 @@
 
 #include <math.h>
 
+#include <media/AudioRecord.h>
+#include <media/AudioSystem.h>
+
+using namespace android;
+
 extern "C" {
 #include <libavutil/opt.h>
 #include <libavcodec/avcodec.h>
@@ -27,6 +32,8 @@ AVStream *videoStream;
 AVStream *audioStream;
 int audioFrameSize;
 float *audioSamples;
+
+AudioRecord *audioRecord;
 
 float t, tincr, tincr2;
 
