@@ -21,26 +21,21 @@ extern "C" {
 }
 
 AVFormatContext *oc;
-AVStream *videoStream;
-AVStream *audioStream;
-
-AudioRecord *audioRecord;
-
-int audioFrameSize;
-float *audioSamples;
-
-#define IN_SAMPLES_SIZE (8 * 1024)
-float inSamples [IN_SAMPLES_SIZE];
-int inSamplesStart, inSamplesEnd;
-
-int64_t totalSamples = 0;
-
-AVFrame *frame;
-
-int frameCount = 0;
 int64_t startTimeMs = 0;
 
-int64_t getTimeMs();
+AVStream *videoStream;
+AVFrame *frame;
+int frameCount = 0;
+
+AVStream *audioStream;
+int audioFrameSize;
+float *outSamples;
+int64_t sampleCount = 0;
+
+AudioRecord *audioRecord;
+int inSamplesSize;
+float *inSamples;
+int inSamplesStart, inSamplesEnd;
 
 void load_ff_components();
 void setupOutputContext();
@@ -50,6 +45,9 @@ void setupAudioOutput();
 void setupOutputFile();
 void startAudioInput();
 void audioRecordCallback(int event, void* user, void *info);
-status_t writeAudioFrame();
+void writeAudioFrame();
+void writeVideoFrame();
+void copyRotateYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride);
+int64_t getTimeMs();
 
 #endif
