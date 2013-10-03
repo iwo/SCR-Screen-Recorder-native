@@ -2,28 +2,55 @@
 
 void setupOutput() {
     int ret;
-    //av_register_all();
+
+    load_ff_components();
+    setupOutputContext();
+    setupVideoStream();
+
+    setupFrame();
+    setupAudioOutput();
+
+    setupOutputFile();
+
+    startAudioInput();
+
+    startTimeMs = getTimeMs();
+
+    mrRunning = true;
+}
+
+
+void load_ff_components() {
     extern AVCodec ff_mpeg4_encoder;
     avcodec_register(&ff_mpeg4_encoder);
+
     extern AVCodec ff_aac_encoder;
         avcodec_register(&ff_aac_encoder);
+
     extern AVOutputFormat ff_mp4_muxer;
     av_register_output_format(&ff_mp4_muxer);
+
     extern URLProtocol ff_file_protocol;
     ffurl_register_protocol(&ff_file_protocol, sizeof(ff_file_protocol));
+}
 
-    codec = avcodec_find_encoder(AV_CODEC_ID_MPEG4);
-    if (!codec) {
-        fprintf(stderr, "Codec not found\n");
-        exit(1);
-    }
 
+void setupOutputContext() {
     avformat_alloc_output_context2(&oc, NULL, NULL, outputName);
     if (!oc) {
         fprintf(stderr, "Can't alloc output context\n");
         exit(1);
     }
-    fmt = oc->oformat;
+}
+
+
+void setupVideoStream() {
+    AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_MPEG4);
+
+    if (!codec) {
+        fprintf(stderr, "Codec not found\n");
+        exit(1);
+    }
 
     videoStream = avformat_new_stream(oc, codec);
     if (!videoStream) {
@@ -31,7 +58,7 @@ void setupOutput() {
         exit(1);
     }
 
-    c = videoStream->codec;
+    AVCodecContext *c = videoStream->codec;
 
     /* put sample parameters */
     c->bit_rate = videoBitrate;
@@ -63,15 +90,12 @@ void setupOutput() {
         fprintf(stderr, "Could not open codec\n");
         exit(1);
     }
+}
 
-    inframe = avcodec_alloc_frame();
-    if (!inframe) {
-        fprintf(stderr, "Could not allocate video frame\n");
-        exit(1);
-    }
-    inframe->format = AV_PIX_FMT_RGB32;
-    inframe->width  = c->width;
-    inframe->height = c->height;
+
+void setupFrame() {
+    int ret;
+    AVCodecContext *c = videoStream->codec;
 
     frame = avcodec_alloc_frame();
     if (!frame) {
@@ -88,14 +112,16 @@ void setupOutput() {
         fprintf(stderr, "Could not allocate raw picture buffer\n");
         exit(1);
     }
+}
 
+
+void setupOutputFile() {
+    int ret;
     ret = avio_open(&oc->pb, outputName, AVIO_FLAG_WRITE);
     if (ret < 0) {
         fprintf(stderr, "Could not open '%s'\n", outputName);
         exit(1);
     }
-
-    setupAudio();
 
     /* Write the stream header, if any. */
     ret = avformat_write_header(oc, NULL);
@@ -103,26 +129,26 @@ void setupOutput() {
         fprintf(stderr, "Error occurred when opening output file\n");
         exit(1);
     }
+}
 
+
+void startAudioInput() {
+    int ret;
     audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT, AUDIO_CHANNEL_IN_MONO, 4096, &audioRecordCallback);
     ret = audioRecord->start();
-    usleep(100000);
-
-    ptsOffset = getTimeMs();
 
     if (ret != OK) {
         fprintf(stderr, "Can't start audio source\n");
         exit(0);
     }
-
-    mrRunning = true;
 }
 
-void setupAudio() {
+
+void setupAudioOutput() {
     int ret;
 
-    audioCodec = avcodec_find_encoder(AV_CODEC_ID_AAC);
-    if (!codec) {
+    AVCodec *audioCodec = avcodec_find_encoder(AV_CODEC_ID_AAC);
+    if (!audioCodec) {
         fprintf(stderr, "AAC Codec not found\n");
         exit(1);
     }
@@ -151,10 +177,6 @@ void setupAudio() {
         exit(1);
     }
 
-    /* init signal generator */
-    t     = 0;
-    tincr = 2 * M_PI * 440.0 / c->sample_rate;
-
     if (c->codec->capabilities & CODEC_CAP_VARIABLE_FRAME_SIZE)
         audioFrameSize = 10000;
     else
@@ -173,9 +195,6 @@ void setupAudio() {
     audioStream->time_base= (AVRational){1,audioSamplingRate};
 }
 
-#define IN_SAMPLES_SIZE (8 * 1024)
-float inSamples [IN_SAMPLES_SIZE];
-int inSamplesStart, inSamplesEnd;
 
 
 void audioRecordCallback(int event, void* user, void *info) {
@@ -207,8 +226,6 @@ static int getAudioFrame()
     }
     return samplesWritten;
 }
-
-int64_t totalSamples = 0;
 
 status_t writeAudioFrame() {
     AVCodecContext *c;
@@ -294,27 +311,28 @@ void copyRotateYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride) {
 void renderFrame() {
     updateInput();
     int ret, x, y, got_output;
+    AVPacket pkt;
     av_init_packet(&pkt);
     pkt.data = NULL;    // packet data will be allocated by the encoder
     pkt.size = 0;
 
-    frame_count++;
-    long pts = frame->pts = av_rescale_q(getTimeMs() - ptsOffset, (AVRational){1,1000}, videoStream->time_base);
+    frameCount++;
+    long pts = frame->pts = av_rescale_q(getTimeMs() - startTimeMs, (AVRational){1,1000}, videoStream->time_base);
 
     copyRotateYUVBuf(frame->data, (uint8_t*)inputBase, frame->linesize);
 
     /* encode the image */
-    ret = avcodec_encode_video2(c, &pkt, frame, &got_output);
+    ret = avcodec_encode_video2(videoStream->codec, &pkt, frame, &got_output);
     if (ret < 0) {
         fprintf(stderr, "Error encoding frame\n");
         exit(1);
     }
 
     if (got_output) {
-        fprintf(stderr, "VIDEO frame %3d (size=%5d)\n", frame_count, pkt.size);
+        fprintf(stderr, "VIDEO frame %3d (size=%5d)\n", frameCount, pkt.size);
         fflush(stderr);
 
-        if (c->coded_frame->key_frame)
+        if (videoStream->codec->coded_frame->key_frame)
             pkt.flags |= AV_PKT_FLAG_KEY;
 
         pkt.stream_index = videoStream->index;
@@ -346,7 +364,7 @@ void renderFrame() {
 
 void closeOutput(bool fromMainThread) {
     int ret, got_output;
-    /*for (got_output = 1; got_output; frame_count++) {
+    /*for (got_output = 1; got_output; frameCount++) {
 
         ret = avcodec_encode_video2(c, &pkt, NULL, &got_output);
         if (ret < 0) {
@@ -355,7 +373,7 @@ void closeOutput(bool fromMainThread) {
         }
 
         if (got_output) {
-            fprintf(stderr, "Write frame %3d (size=%5d)\n", frame_count, pkt.size);
+            fprintf(stderr, "Write frame %3d (size=%5d)\n", frameCount, pkt.size);
             fflush(stderr);
 
 
@@ -363,12 +381,12 @@ void closeOutput(bool fromMainThread) {
         }
     }*/
 
-    fprintf(stderr, "avg fps %lld\n", frame_count * 1000 / (getTimeMs() - ptsOffset));
+    fprintf(stderr, "avg fps %lld\n", frameCount * 1000 / (getTimeMs() - startTimeMs));
     fflush(stderr);
 
     av_write_trailer(oc);
 
-    avcodec_close(c);
+    avcodec_close(videoStream->codec);
     av_freep(&frame->data[0]);
     avcodec_free_frame(&frame);
 
