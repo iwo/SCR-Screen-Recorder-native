@@ -45,6 +45,6 @@ int64_t ptsOffset = 0;
 
 int64_t getTimeMs();
 void setupAudio();
-void writeAudioFrame();
+status_t writeAudioFrame();
 
 #endif
