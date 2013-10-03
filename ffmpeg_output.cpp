@@ -104,7 +104,7 @@ void setupOutput() {
         exit(1);
     }
 
-    audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT, AUDIO_CHANNEL_IN_MONO, 4096);
+    audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT, AUDIO_CHANNEL_IN_MONO, 4096, &audioRecordCallback);
     ret = audioRecord->start();
     usleep(100000);
 
@@ -173,46 +173,39 @@ void setupAudio() {
     audioStream->time_base= (AVRational){1,audioSamplingRate};
 }
 
-float remainingSamples [4096];
-int remainingSamplesStart, remainingSamplesEnd;
+#define IN_SAMPLES_SIZE (8 * 1024)
+float inSamples [IN_SAMPLES_SIZE];
+int inSamplesStart, inSamplesEnd;
+
+
+void audioRecordCallback(int event, void* user, void *info) {
+    if (event != 0) return;
+
+    AudioRecord::Buffer *buffer = (AudioRecord::Buffer*) info;
+
+    for (unsigned int i = 0; i < buffer->frameCount; i++) {
+        inSamples[inSamplesEnd++] = (float)buffer->i16[i] / 30000.0;
+        inSamplesEnd %= IN_SAMPLES_SIZE;
+        if (inSamplesEnd == inSamplesStart) {
+            fprintf(stderr, "OVERRUN <<<<<<<<<<<<<<<<<<<<\n");
+        }
+    }
+    fprintf(stderr, "more data %d\n", buffer->frameCount);
+}
+
+int availableSamplesCount() {
+    return (IN_SAMPLES_SIZE + inSamplesEnd - inSamplesStart) % IN_SAMPLES_SIZE;
+}
 
 static int getAudioFrame()
 {
     int samplesWritten = 0;
 
-    while (remainingSamplesStart < remainingSamplesEnd && samplesWritten < audioFrameSize) {
-        audioSamples[samplesWritten++] = remainingSamples[remainingSamplesStart++];
+    while (samplesWritten < audioFrameSize && availableSamplesCount() > 0) {
+        audioSamples[samplesWritten++] = inSamples[inSamplesStart++];
+        inSamplesStart %= IN_SAMPLES_SIZE;
     }
-
-    while (samplesWritten < audioFrameSize) {
-        AudioRecord::Buffer buffer;
-        status_t status = audioRecord->obtainBuffer(&buffer, 0);
-        if (status != NO_ERROR || buffer.frameCount == 0) {
-            break;
-        }
-        fprintf(stderr, "%d ", buffer.frameCount);
-        remainingSamplesStart = 0;
-        remainingSamplesEnd = 0;
-        for (int i = 0; i < buffer.frameCount; i++) {
-            if (samplesWritten < audioFrameSize) {
-                audioSamples[samplesWritten++] = (float)buffer.i16[i] / 30000.0;
-            } else {
-                remainingSamples[remainingSamplesEnd++] = (float)buffer.i16[i] / 30000.0;
-            }
-        }
-
-        audioRecord->releaseBuffer(&buffer);
-    }
-    fprintf(stderr, "\naudio samples %d\n", samplesWritten);
     return samplesWritten;
-
-    /*for (int i = 0; i < audioFrameSize; i++) {
-        audioSamples[i] = sin(t) * 0.5;
-        t     += tincr;
-        //tincr += tincr2;
-    }*/
-
-
 }
 
 int64_t totalSamples = 0;
@@ -234,8 +227,8 @@ status_t writeAudioFrame() {
         return 1;
     }
 
+    frame->pts = totalSamples;
     totalSamples += frame->nb_samples;
-    frame->pts = totalSamples; //av_rescale_q(totalSamples, (AVRational){1,audioSamplingRate}, audioStream->time_base);
 
     avcodec_fill_audio_frame(frame, c->channels, c->sample_fmt, (uint8_t *)audioSamples, audioFrameSize *
                              av_get_bytes_per_sample(c->sample_fmt) *
@@ -337,8 +330,10 @@ void renderFrame() {
     }
 
     long audioPts = av_rescale_q(audioStream->pts.val, audioStream->time_base, videoStream->time_base);
-    while (audioPts < pts) {
-        fprintf(stderr, "%ld <%ld \n", audioPts, pts);
+    fprintf(stderr, "%ld < %ld  (%d)\n", audioPts, pts, availableSamplesCount());
+    fflush(stderr);
+    while (audioPts < pts && availableSamplesCount() >= audioFrameSize) {
+        fprintf(stderr, "%ld < %ld  (%d) write\n", audioPts, pts, availableSamplesCount());
         fflush(stderr);
         if (writeAudioFrame() != NO_ERROR) {
             break;

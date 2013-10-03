@@ -46,5 +46,6 @@ int64_t ptsOffset = 0;
 int64_t getTimeMs();
 void setupAudio();
 status_t writeAudioFrame();
+void audioRecordCallback(int event, void* user, void *info);
 
 #endif
