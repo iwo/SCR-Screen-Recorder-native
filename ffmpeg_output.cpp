@@ -177,11 +177,11 @@ void setupOutputFile() {
 void startAudioInput() {
     int ret;
 
-    audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT, AUDIO_CHANNEL_IN_MONO, 4096, &audioRecordCallback);
-    ret = audioRecord->start();
-
     inSamplesSize = audioSamplingRate; // buffer up to one second of input audio data
     inSamples = new float[inSamplesSize];
+
+    audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT, AUDIO_CHANNEL_IN_MONO, 4096, &audioRecordCallback);
+    ret = audioRecord->start();
 
     if (ret != OK) {
         fprintf(stderr, "Can't start audio source\n");
