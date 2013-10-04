@@ -176,6 +176,7 @@ void setupOutputFile() {
 
 void startAudioInput() {
     int ret;
+
     audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT, AUDIO_CHANNEL_IN_MONO, 4096, &audioRecordCallback);
     ret = audioRecord->start();
 
@@ -192,6 +193,7 @@ void startAudioInput() {
 void audioRecordCallback(int event, void* user, void *info) {
     if (event != 0) return;
 
+    PERF_START(audio_in)
     AudioRecord::Buffer *buffer = (AudioRecord::Buffer*) info;
 
     for (unsigned int i = 0; i < buffer->frameCount; i++) {
@@ -201,6 +203,7 @@ void audioRecordCallback(int event, void* user, void *info) {
             fprintf(stderr, "OVERRUN <<<<<<<<<<<<<<<<<<<<\n");
         }
     }
+    PERF_END(audio_in)
 }
 
 int availableSamplesCount() {
@@ -244,9 +247,6 @@ void writeAudioFrame() {
     }
 
     if (pktReceived) {
-        fprintf(stderr, "AUDIO frame (size=%5d)\n", pkt.size);
-        fflush(stderr);
-
         pkt.stream_index = audioStream->index;
 
         /* Write the compressed frame to the media file. */
@@ -269,8 +269,11 @@ void writeVideoFrame() {
 
     frame->pts = av_rescale_q(getTimeMs() - startTimeMs, (AVRational){1,1000}, videoStream->time_base);
 
+    PERF_START(transform)
     copyRotateYUVBuf(frame->data, (uint8_t*)inputBase, frame->linesize);
+    PERF_END(transform)
 
+    PERF_START(video_enc)
     /* encode the image */
     ret = avcodec_encode_video2(videoStream->codec, &pkt, frame, &pktReceived);
     if (ret < 0) {
@@ -280,7 +283,6 @@ void writeVideoFrame() {
 
     if (pktReceived) {
         fprintf(stderr, "VIDEO frame %3d (size=%5d)\n", frameCount, pkt.size);
-        fflush(stderr);
 
         if (videoStream->codec->coded_frame->key_frame)
             pkt.flags |= AV_PKT_FLAG_KEY;
@@ -295,23 +297,35 @@ void writeVideoFrame() {
         }
     }
     av_free_packet(&pkt);
+    PERF_END(video_enc)
 }
 
 void renderFrame() {
+    PERF_START(screenshot)
     updateInput();
+    PERF_END(screenshot)
 
     frameCount++;
+
     writeVideoFrame();
 
+    PERF_START(audio_out)
     while (availableSamplesCount() >= audioFrameSize) {
         writeAudioFrame();
     }
+    PERF_END(audio_out)
 }
 
 void closeOutput(bool fromMainThread) {
 
     fprintf(stderr, "avg fps %lld\n", frameCount * 1000 / (getTimeMs() - startTimeMs));
     fflush(stderr);
+
+    PERF_STATS(audio_out)
+    PERF_STATS(audio_in)
+    PERF_STATS(screenshot)
+    PERF_STATS(video_enc)
+    PERF_STATS(transform)
 
     av_write_trailer(oc);
 

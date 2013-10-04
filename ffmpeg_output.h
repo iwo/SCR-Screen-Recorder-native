@@ -50,4 +50,36 @@ void writeVideoFrame();
 void copyRotateYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride);
 int64_t getTimeMs();
 
+#define PERF_INIT( name ) \
+    int64_t perf_time_##name = 0; \
+    int perf_count_##name = 0; \
+    int64_t perf_start_##name = 0;
+
+#define PERF_START( name ) \
+    perf_start_##name = perf_getTimeUs();
+
+#define PERF_END( name ) \
+    int64_t perf_current_time_##name = perf_getTimeUs() - perf_start_##name; \
+    perf_time_##name += perf_current_time_##name; \
+    perf_count_##name++;
+
+#define PERF_STATS( name ) \
+    fprintf(stderr, "PERF "#name"\tavg=%6lld\tfps limit %lld\n", perf_time_##name / perf_count_##name, 1000000l/(perf_time_##name / perf_count_##name)); \
+    fflush(stderr);
+
+
+int64_t perf_getTimeUs() {
+    timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (int64_t)now.tv_sec * 1000000l + now.tv_nsec / 1000l;
+}
+
+PERF_INIT(screenshot)
+PERF_INIT(video_enc)
+PERF_INIT(audio_out)
+PERF_INIT(audio_in)
+PERF_INIT(transform)
+
+
+
 #endif
