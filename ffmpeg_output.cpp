@@ -7,7 +7,7 @@ void setupOutput() {
     setupOutputContext();
     setupVideoStream();
 
-    setupFrame();
+    setupFrames();
     setupAudioOutput();
 
     setupOutputFile();
@@ -17,6 +17,9 @@ void setupOutput() {
     startTimeMs = getTimeMs();
 
     mrRunning = true;
+
+    pthread_mutex_lock(&frameReadyMutex);
+    pthread_create(&encodingThread, NULL, encodingThreadStart, NULL);
 }
 
 
@@ -89,12 +92,16 @@ void setupVideoStream() {
     }
 }
 
+void setupFrames() {
+    frames[0] = createFrame();
+    frames[1] = createFrame();
+}
 
-void setupFrame() {
+
+AVFrame *createFrame() {
     int ret;
     AVCodecContext *c = videoStream->codec;
-
-    frame = avcodec_alloc_frame();
+    AVFrame * frame = avcodec_alloc_frame();
     if (!frame) {
         fprintf(stderr, "Could not allocate video frame\n");
         exit(1);
@@ -108,8 +115,8 @@ void setupFrame() {
         fprintf(stderr, "Could not allocate raw picture buffer\n");
         exit(1);
     }
+    return frame;
 }
-
 
 void setupAudioOutput() {
     int ret;
@@ -249,8 +256,10 @@ void writeAudioFrame() {
     if (pktReceived) {
         pkt.stream_index = audioStream->index;
 
+        pthread_mutex_lock(&outputWriteMutex);
         /* Write the compressed frame to the media file. */
         ret = av_interleaved_write_frame(oc, &pkt);
+        pthread_mutex_unlock(&outputWriteMutex);
         if (ret != 0) {
             fprintf(stderr, "Error while writing audio frame");
             exit(1);
@@ -261,19 +270,44 @@ void writeAudioFrame() {
 }
 
 void writeVideoFrame() {
-    int ret, x, y, pktReceived;
+    pthread_mutex_lock(&frameEncMutex);
+    videoFrame = frames[frameCount % 2];
+    //fprintf(stderr, "Populate frame %d\n", (videoFrame == frames[0]) ? 0 : 1);fflush(stderr);
+
+    videoFrame->pts = av_rescale_q(getTimeMs() - startTimeMs, (AVRational){1,1000}, videoStream->time_base);
+
+    PERF_START(transform)
+    copyRotateYUVBuf(videoFrame->data, (uint8_t*)inputBase, videoFrame->linesize);
+    PERF_END(transform)
+    //fprintf(stderr, "Frame ready %d\n", (videoFrame == frames[0]) ? 0 : 1);fflush(stderr);
+    pthread_mutex_unlock(&frameReadyMutex);
+}
+
+void* encodingThreadStart(void* args) {
+    while (1) {
+        pthread_mutex_lock(&frameReadyMutex);
+        if (!mrRunning) {
+            break;
+        }
+        AVFrame *f = videoFrame;
+        pthread_mutex_unlock(&frameEncMutex);
+        //fprintf(stderr, "Encode frame %d\n", (f == frames[0]) ? 0 : 1);fflush(stderr);
+        encodeAndSaveVideoFrame(f);
+        //fprintf(stderr, "Frame encoded %d\n", (f == frames[0]) ? 0 : 1);fflush(stderr);
+    }
+    pthread_exit(NULL);
+    return NULL;
+}
+
+void encodeAndSaveVideoFrame(AVFrame *frame) {
+    PERF_START(video_enc)
+
+    int ret, pktReceived;
     AVPacket pkt;
     av_init_packet(&pkt);
     pkt.data = NULL;    // packet data will be allocated by the encoder
     pkt.size = 0;
 
-    frame->pts = av_rescale_q(getTimeMs() - startTimeMs, (AVRational){1,1000}, videoStream->time_base);
-
-    PERF_START(transform)
-    copyRotateYUVBuf(frame->data, (uint8_t*)inputBase, frame->linesize);
-    PERF_END(transform)
-
-    PERF_START(video_enc)
     /* encode the image */
     ret = avcodec_encode_video2(videoStream->codec, &pkt, frame, &pktReceived);
     if (ret < 0) {
@@ -289,8 +323,10 @@ void writeVideoFrame() {
 
         pkt.stream_index = videoStream->index;
 
+        pthread_mutex_lock(&outputWriteMutex);
         /* Write the compressed frame to the media file. */
         ret = av_interleaved_write_frame(oc, &pkt);
+        pthread_mutex_unlock(&outputWriteMutex);
         if (ret != 0) {
             fprintf(stderr, "Error while writing video frame");
             exit(1);
@@ -317,6 +353,9 @@ void renderFrame() {
 }
 
 void closeOutput(bool fromMainThread) {
+    mrRunning = false;
+    pthread_mutex_unlock(&frameReadyMutex);
+    pthread_join(encodingThread, NULL);
 
     fprintf(stderr, "avg fps %lld\n", frameCount * 1000 / (getTimeMs() - startTimeMs));
     fflush(stderr);
@@ -330,8 +369,10 @@ void closeOutput(bool fromMainThread) {
     av_write_trailer(oc);
 
     avcodec_close(videoStream->codec);
-    av_freep(&frame->data[0]);
-    avcodec_free_frame(&frame);
+    av_freep(&frames[0]->data[0]);
+    avcodec_free_frame(&frames[0]);
+    av_freep(&frames[1]->data[0]);
+    avcodec_free_frame(&frames[1]);
 
     avio_close(oc->pb);
 
@@ -339,8 +380,6 @@ void closeOutput(bool fromMainThread) {
     avformat_free_context(oc);
 
     audioRecord->stop();
-
-    mrRunning = false;
 }
 
 int64_t getTimeMs() {

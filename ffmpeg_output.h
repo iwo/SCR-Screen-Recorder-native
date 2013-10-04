@@ -24,7 +24,8 @@ AVFormatContext *oc;
 int64_t startTimeMs = 0;
 
 AVStream *videoStream;
-AVFrame *frame;
+AVFrame *videoFrame;
+AVFrame *frames[2];
 int frameCount = 0;
 
 AVStream *audioStream;
@@ -37,10 +38,19 @@ int inSamplesSize;
 float *inSamples;
 int inSamplesStart, inSamplesEnd;
 
+pthread_t encodingThread;
+pthread_mutex_t frameReadyMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t frameEncMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t outputWriteMutex = PTHREAD_MUTEX_INITIALIZER;
+
+void* encodingThreadStart(void* args);
+void encodeAndSaveVideoFrame(AVFrame *frame);
+
 void load_ff_components();
 void setupOutputContext();
 void setupVideoStream();
-void setupFrame();
+AVFrame * createFrame();
+void setupFrames();
 void setupAudioOutput();
 void setupOutputFile();
 void startAudioInput();
