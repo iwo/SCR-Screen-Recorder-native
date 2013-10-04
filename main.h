@@ -34,6 +34,7 @@ bool useBGRA = false;
 bool useYUV_P = false;
 bool useYUV_SP = false;
 int videoEncoder = 0;
+bool allowVerticalFrames = true;
 
 // Output
 int outputFd;

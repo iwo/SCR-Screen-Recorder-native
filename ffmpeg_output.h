@@ -58,6 +58,7 @@ void audioRecordCallback(int event, void* user, void *info);
 void writeAudioFrame();
 void writeVideoFrame();
 void copyRotateYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride);
+void copyYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride);
 int64_t getTimeMs();
 
 #define PERF_INIT( name ) \

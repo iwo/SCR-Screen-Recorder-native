@@ -277,7 +277,11 @@ void writeVideoFrame() {
     videoFrame->pts = av_rescale_q(getTimeMs() - startTimeMs, (AVRational){1,1000}, videoStream->time_base);
 
     PERF_START(transform)
-    copyRotateYUVBuf(videoFrame->data, (uint8_t*)inputBase, videoFrame->linesize);
+    if (rotateView) {
+        copyRotateYUVBuf(videoFrame->data, (uint8_t*)inputBase, videoFrame->linesize);
+    } else {
+        copyYUVBuf(videoFrame->data, (uint8_t*)inputBase, videoFrame->linesize);
+    }
     PERF_END(transform)
     //fprintf(stderr, "Frame ready %d\n", (videoFrame == frames[0]) ? 0 : 1);fflush(stderr);
     pthread_mutex_unlock(&frameReadyMutex);
@@ -392,6 +396,33 @@ void copyRotateYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride) {
     for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
         for (int y = videoHeight - paddingHeight - 1; y >= paddingHeight; y--) {
             int idx = ((x - paddingWidth) * inputStride + videoHeight - paddingHeight - y - 1) * 4;
+            uint8_t r,g,b;
+            if (useBGRA) {
+                b = screen[idx];
+                g = screen[idx + 1];
+                r = screen[idx + 2];
+            } else {
+                r = screen[idx];
+                g = screen[idx + 1];
+                b = screen[idx + 2];
+            }
+            uint16_t Y = ( (  66 * r + 129 * g +  25 * b + 128) >> 8) +  16;
+            yuvPixels[0][y * stride[0] + x] = Y;
+            if (y % 2 == 0 && x % 2 == 0) {
+                uint16_t U = ( ( -38 * r -  74 * g + 112 * b + 128) >> 8) + 128;
+                uint16_t V = ( ( 112 * r -  94 * g -  18 * b + 128) >> 8) + 128;
+                yuvPixels[1][y * stride[1] / 2 + x / 2 ] = U;
+                yuvPixels[2][y * stride[2] / 2 + x / 2 ] = V;
+            }
+        }
+    }
+}
+
+void copyYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride) {
+    for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
+        for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
+
+            int idx = ((y - paddingHeight) * inputStride + x - paddingWidth) * 4;
             uint8_t r,g,b;
             if (useBGRA) {
                 b = screen[idx];

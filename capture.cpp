@@ -66,7 +66,7 @@ void setupInput() {
 
 #endif // SCR_FB
 
-    if (inputWidth > inputHeight) {
+    if (allowVerticalFrames || inputWidth > inputHeight) {
         videoWidth = inputWidth + 2 * paddingWidth;
         videoHeight = inputHeight + 2 * paddingHeight;
         rotateView = false;
