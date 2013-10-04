@@ -203,6 +203,7 @@ void audioRecordCallback(int event, void* user, void *info) {
     PERF_START(audio_in)
     AudioRecord::Buffer *buffer = (AudioRecord::Buffer*) info;
 
+    pthread_mutex_lock(&inSamplesMutex);
     for (unsigned int i = 0; i < buffer->frameCount; i++) {
         inSamples[inSamplesEnd++] = (float)buffer->i16[i] / 32769.0;
         inSamplesEnd %= inSamplesSize;
@@ -210,6 +211,7 @@ void audioRecordCallback(int event, void* user, void *info) {
             fprintf(stderr, "OVERRUN <<<<<<<<<<<<<<<<<<<<\n");
         }
     }
+    pthread_mutex_unlock(&inSamplesMutex);
     PERF_END(audio_in)
 }
 
@@ -221,10 +223,12 @@ void getAudioFrame()
 {
     int samplesWritten = 0;
 
+    pthread_mutex_lock(&inSamplesMutex);
     while (samplesWritten < audioFrameSize && availableSamplesCount() > 0) {
         outSamples[samplesWritten++] = inSamples[inSamplesStart++];
         inSamplesStart %= inSamplesSize;
     }
+    pthread_mutex_unlock(&inSamplesMutex);
 }
 
 void writeAudioFrame() {

@@ -42,6 +42,7 @@ pthread_t encodingThread;
 pthread_mutex_t frameReadyMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t frameEncMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t outputWriteMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t inSamplesMutex = PTHREAD_MUTEX_INITIALIZER;
 
 void* encodingThreadStart(void* args);
 void encodeAndSaveVideoFrame(AVFrame *frame);
