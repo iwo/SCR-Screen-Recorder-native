@@ -191,7 +191,17 @@ void FFmpegOutput::startAudioInput() {
     inSamplesSize = audioSamplingRate; // buffer up to one second of input audio data
     inSamples = new float[inSamplesSize];
 
-    audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT, AUDIO_CHANNEL_IN_MONO, 4096, &staticAudioRecordCallback, this);
+    audioRecord = new AudioRecord(AUDIO_SOURCE_MIC,
+                        audioSamplingRate,
+                        AUDIO_FORMAT_PCM_16_BIT,
+                        AUDIO_CHANNEL_IN_MONO,
+                        4096,
+    #if SCR_SDK_VERSION < 17
+                        (AudioRecord::record_flags) 0,
+    #endif // SCR_SDK_VERSION < 17
+                        &staticAudioRecordCallback,
+                        this);
+
     ret = audioRecord->start();
 
     if (ret != OK) {
