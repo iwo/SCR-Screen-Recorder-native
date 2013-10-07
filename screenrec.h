@@ -52,10 +52,7 @@ extern int inputWidth, inputHeight, inputStride;
 extern bool rotateView;
 
 // global state
-extern bool finished;
 extern bool stopping;
-extern int errorCode;
-extern int targetFrameTime;
 extern bool mrRunning;
 
 extern pthread_t stoppingThread;
