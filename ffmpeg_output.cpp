@@ -5,14 +5,19 @@ void setupOutput() {
 
     loadFFmpegComponents();
     setupOutputContext();
-    setupVideoStream();
 
+    setupVideoStream();
     setupFrames();
-    setupAudioOutput();
+
+    if (micAudio) {
+        setupAudioOutput();
+    }
 
     setupOutputFile();
 
-    startAudioInput();
+    if (micAudio) {
+        startAudioInput();
+    }
 
     startTimeMs = getTimeMs();
 
@@ -27,8 +32,10 @@ void loadFFmpegComponents() {
     extern AVCodec ff_mpeg4_encoder;
     avcodec_register(&ff_mpeg4_encoder);
 
-    extern AVCodec ff_aac_encoder;
+    if (micAudio) {
+        extern AVCodec ff_aac_encoder;
         avcodec_register(&ff_aac_encoder);
+    }
 
     extern AVOutputFormat ff_mp4_muxer;
     av_register_output_format(&ff_mp4_muxer);
@@ -353,7 +360,7 @@ void renderFrame() {
     writeVideoFrame();
 
     PERF_START(audio_out)
-    while (availableSamplesCount() >= audioFrameSize) {
+    while (micAudio && availableSamplesCount() >= audioFrameSize) {
         writeAudioFrame();
     }
     PERF_END(audio_out)
@@ -386,7 +393,9 @@ void closeOutput(bool fromMainThread) {
     /* free the stream */
     avformat_free_context(oc);
 
-    audioRecord->stop();
+    if (micAudio) {
+        audioRecord->stop();
+    }
 }
 
 int64_t getTimeMs() {
