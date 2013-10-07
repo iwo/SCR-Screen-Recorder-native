@@ -47,7 +47,7 @@ pthread_mutex_t inSamplesMutex = PTHREAD_MUTEX_INITIALIZER;
 void* encodingThreadStart(void* args);
 void encodeAndSaveVideoFrame(AVFrame *frame);
 
-void load_ff_components();
+void loadFFmpegComponents();
 void setupOutputContext();
 void setupVideoStream();
 AVFrame * createFrame();
