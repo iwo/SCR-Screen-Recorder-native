@@ -23,89 +23,95 @@
 
 using namespace android;
 
-// EGL
-EGLDisplay mEglDisplay = EGL_NO_DISPLAY;
-EGLSurface mEglSurface = EGL_NO_SURFACE;
-EGLContext mEglContext = EGL_NO_CONTEXT;
-EGLConfig mEglconfig;
+class AbstractMediaRecorderOutput : public ScrOutput {
+public:
+    AbstractMediaRecorderOutput() : mr(NULL), mSTC(NULL), mANW(NULL) {}
+    virtual ~AbstractMediaRecorderOutput() {}
+    virtual void setupOutput();
+    virtual void renderFrame() = 0;
+    virtual void closeOutput(bool fromMainThread);
 
-// OpenGL
-GLuint mProgram;
-GLuint mvPositionHandle;
-GLuint mvTransformHandle;
-GLuint mColorTransformHandle;
-GLuint mTexCoordHandle;
-GLuint mTexture;
-uint32_t *mPixels;
+protected:
+    // MediaRecorder
+    sp<MediaRecorder> mr;
+    sp<Surface> mSTC;
+    sp<ANativeWindow> mANW;
 
-GLfloat *transformMatrix;
-
-GLfloat flipAndRotateMatrix[] = {
-    0.0, 1.0, 0.0, 0.0,
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0,-1.0, 0.0,
-    0.0, 0.0, 0.0, 1};
-
-GLfloat flipMatrix[] = {
-    1.0, 0.0, 0.0, 0.0,
-    0.0,-1.0, 0.0, 0.0,
-    0.0, 0.0,-1.0, 0.0,
-    0.0, 0.0, 0.0, 1};
-
-GLfloat *colorMatrix;
-
-GLfloat rgbaMatrix[] = {
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 1.0};
-
-GLfloat bgraMatrix[] = {
-    0.0, 0.0, 1.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 1.0};
-
-GLfloat vertices[] =  {
-    -1.0, -1.0, 0.0,
-     1.0, -1.0, 0.0,
-    -1.0,  1.0, 0.0,
-     1.0,  1.0, 0.0};
-
-GLfloat texCoordinates[] = {
-    0.0, 0.0, 0.0,
-    1.0, 0.0, 0.0,
-    0.0, 1.0, 0.0,
-    1.0 ,1.0, 0.0 };
-
-// MediaRecorder
-sp<MediaRecorder> mr = NULL;
-sp<Surface> mSTC = NULL;
-sp<ANativeWindow> mANW = NULL;
-
-void setupEgl();
-void setupGl();
-int getTexSize(int size);
-void setupMediaRecorder();
-void renderFrameGl();
-void renderFrameCPU();
-void copyRotateYUVBuf(uint8_t* yuvPixels, uint8_t* screen, int stride);
-void copyRotateBuf(uint32_t* bufPixels, uint32_t* screen, int stride);
-void copyBuf(uint32_t* bufPixels, uint32_t* screen, int stride);
-static inline uint32_t convertColor(uint32_t color);
-
-void tearDownMediaRecorder(bool async);
-void* stoppingThreadStart(void* args);
-void stopMediaRecorder();
-void stopMediaRecorderAsync();
-void tearDownEgl();
+    void setupMediaRecorder();
+    void tearDownMediaRecorder(bool async);
+    static void* stoppingThreadStart(void* args);
+    void stopMediaRecorder();
+    void stopMediaRecorderAsync();
+};
 
 
-// OpenGL helpers
-void checkGlError(const char* op, bool critical);
-void checkGlError(const char* op);
-GLuint loadShader(GLenum shaderType, const char* pSource);
-GLuint createProgram(const char* pVertexSource, const char* pFragmentSource);
+class GLMediaRecorderOutput : public AbstractMediaRecorderOutput {
+public:
+    GLMediaRecorderOutput() :
+        mEglDisplay(EGL_NO_DISPLAY), mEglSurface(EGL_NO_SURFACE), mEglContext(EGL_NO_CONTEXT) {
+        memset(vertices, 0, sizeof(vertices));
+        memset(texCoordinates, 0, sizeof(texCoordinates));
+    }
+    virtual ~GLMediaRecorderOutput() {}
+    virtual void setupOutput();
+    virtual void renderFrame();
+    virtual void closeOutput(bool fromMainThread);
+
+private:
+    // EGL
+    EGLDisplay mEglDisplay;
+    EGLSurface mEglSurface;
+    EGLContext mEglContext;
+    EGLConfig mEglconfig;
+
+    // OpenGL
+    GLuint mProgram;
+    GLuint mvPositionHandle;
+    GLuint mvTransformHandle;
+    GLuint mColorTransformHandle;
+    GLuint mTexCoordHandle;
+    GLuint mTexture;
+    uint32_t *mPixels;
+
+    GLfloat *transformMatrix;
+    static GLfloat flipAndRotateMatrix[16];
+    static GLfloat flipMatrix[16];
+
+    GLfloat *colorMatrix;
+    static GLfloat rgbaMatrix[16];
+    static GLfloat bgraMatrix[16];
+
+    GLfloat vertices[12];
+    GLfloat texCoordinates[12];
+
+    void setupEgl();
+    void setupGl();
+    void tearDownEgl();
+    int getTexSize(int size);
+
+    // OpenGL helpers
+    void checkGlError(const char* op, bool critical);
+    void checkGlError(const char* op);
+    GLuint loadShader(GLenum shaderType, const char* pSource);
+    GLuint createProgram(const char* pVertexSource, const char* pFragmentSource);
+};
+
+
+class CPUMediaRecorderOutput : public AbstractMediaRecorderOutput {
+public:
+    CPUMediaRecorderOutput() {}
+    virtual ~CPUMediaRecorderOutput() {}
+    virtual void setupOutput();
+    virtual void renderFrame();
+    virtual void closeOutput(bool fromMainThread);
+
+private:
+    void copyRotateYUVBuf(uint8_t* yuvPixels, uint8_t* screen, int stride);
+    void copyRotateBuf(uint32_t* bufPixels, uint32_t* screen, int stride);
+    void copyBuf(uint32_t* bufPixels, uint32_t* screen, int stride);
+    inline uint32_t convertColor(uint32_t color);
+};
+
 
 class SCRListener : public MediaRecorderListener
 {

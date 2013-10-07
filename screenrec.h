@@ -60,14 +60,21 @@ extern bool mrRunning;
 
 extern pthread_t stoppingThread;
 
-void setupOutput();
 void setupInput();
-void renderFrame();
+
 void updateInput();
 void updateTexImage(); // check if it can't be removed after moving updateInput() invocation
 void stop(int error, const char* message);
 void stop(int error, bool fromMainThread, const char* message);
-void closeOutput(bool fromMainThread);
 void closeInput();
+
+class ScrOutput {
+public:
+    ScrOutput() {}
+    virtual ~ScrOutput() {}
+    virtual void setupOutput() = 0;
+    virtual void renderFrame() = 0;
+    virtual void closeOutput(bool fromMainThread) = 0;
+};
 
 #endif

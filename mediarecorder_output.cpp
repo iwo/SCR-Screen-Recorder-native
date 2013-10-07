@@ -3,188 +3,17 @@
 
 using namespace android;
 
-static const char sVertexShader[] =
-    "attribute vec4 vPosition;\n"
-    "attribute vec2 texCoord; \n"
-    "uniform mat4 vTransform;"
-    "varying vec2 tc; \n"
-    "void main() {\n"
-    "  tc = texCoord;\n"
-    "  gl_Position = vTransform * vPosition;\n"
-    "}\n";
 
-static const char sFragmentShader[] =
-    "precision mediump float;\n"
-    "uniform sampler2D textureSampler; \n"
-    "uniform mat4 colorTransform;"
-    "varying vec2 tc; \n"
-    "void main() {\n"
-    "  gl_FragColor.rgba = colorTransform * texture2D(textureSampler, tc); \n"
-    "}\n";
-
-
-static const char sFragmentShaderOES[] =
-    "#extension GL_OES_EGL_image_external : require\n"
-    "precision mediump float;\n"
-    "uniform samplerExternalOES textureSampler; \n"
-    "uniform mat4 colorTransform;"
-    "varying vec2 tc; \n"
-    "void main() {\n"
-    "  gl_FragColor.rgba = colorTransform * texture2D(textureSampler, tc); \n"
-    "}\n";
-
-static EGLint eglConfigAttribs[] = {
-            EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-            EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-            EGL_RED_SIZE, 8,
-            EGL_GREEN_SIZE, 8,
-            EGL_BLUE_SIZE, 8,
-            EGL_RECORDABLE_ANDROID, EGL_TRUE,
-            EGL_NONE };
-
-static EGLint eglContextAttribs[] = {
-            EGL_CONTEXT_CLIENT_VERSION, 2,
-            EGL_NONE };
-
-
-void setupOutput() {
+void AbstractMediaRecorderOutput::setupOutput() {
     outputFd = open(outputName, O_RDWR | O_CREAT, 0744);
     if (outputFd < 0) {
         stop(201, "Could not open the output file");
     }
-
-    if (useGl)
-        setupEgl();
-    setupMediaRecorder();
-    if (useGl)
-        setupGl();
 }
 
-void setupEgl() {
-    ALOGV("setupEgl()");
-    mEglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (eglGetError() != EGL_SUCCESS || mEglDisplay == EGL_NO_DISPLAY) {
-        stop(207, "eglGetDisplay() failed");
-    }
-
-    EGLint majorVersion;
-    EGLint minorVersion;
-    eglInitialize(mEglDisplay, &majorVersion, &minorVersion);
-    if (eglGetError() != EGL_SUCCESS) {
-        stop(208, "eglInitialize() failed");
-    }
-
-    EGLint numConfigs = 0;
-    eglChooseConfig(mEglDisplay, eglConfigAttribs, &mEglconfig, 1, &numConfigs);
-    if (eglGetError() != EGL_SUCCESS  || numConfigs < 1) {
-        stop(209, "eglChooseConfig() failed");
-    }
-    mEglContext = eglCreateContext(mEglDisplay, mEglconfig, EGL_NO_CONTEXT, eglContextAttribs);
-    if (eglGetError() != EGL_SUCCESS || mEglContext == EGL_NO_CONTEXT) {
-        stop(210, "eglGetDisplay() failed");
-    }
-    ALOGV("EGL initialized");
-}
-
-
-void setupGl() {
-    ALOGV("setup GL");
-
-    mEglSurface = eglCreateWindowSurface(mEglDisplay, mEglconfig, mANW.get(), NULL);
-    if (eglGetError() != EGL_SUCCESS || mEglSurface == EGL_NO_SURFACE) {
-        stop(214, "eglCreateWindowSurface() failed");
-    };
-
-    eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface, mEglContext);
-    if (eglGetError() != EGL_SUCCESS ) {
-        stop(215, "eglMakeCurrent() failed");
-    };
-
-    transformMatrix = rotateView ? flipAndRotateMatrix : flipMatrix;
-
-    if (useOes) {
-        mProgram = createProgram(sVertexShader, sFragmentShaderOES);
-    } else {
-        mProgram = createProgram(sVertexShader, sFragmentShader);
-    }
-    if (!mProgram) {
-        stop(212, "Could not create GL program.");
-    }
-
-    mvPositionHandle = glGetAttribLocation(mProgram, "vPosition");
-    mTexCoordHandle = glGetAttribLocation(mProgram, "texCoord");
-    checkGlError("glGetAttribLocation");
-
-    mvTransformHandle = glGetUniformLocation(mProgram, "vTransform");
-    checkGlError("glGetUniformLocation");
-
-    mColorTransformHandle = glGetUniformLocation(mProgram, "colorTransform");
-    checkGlError("glGetUniformLocation");
-
-    if (useOes) {
-        glBindTexture(GL_TEXTURE_EXTERNAL_OES, 1);
-        checkGlError("glBindTexture");
-
-        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        checkGlError("glTexParameteri");
-    } else {
-        glDeleteTextures(1, &mTexture);
-        glGenTextures(1, &mTexture);
-        glBindTexture(GL_TEXTURE_2D, mTexture);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        checkGlError("texture setup");
-
-        int texWidth = getTexSize(inputStride);
-        int texHeight = getTexSize(inputHeight);
-
-        mPixels = (uint32_t*)malloc(4 * texWidth * texHeight);
-        if (mPixels == (uint32_t*)NULL) {
-            stop(211, "malloc failed");
-        }
-
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, mPixels);
-        checkGlError("glTexImage2D", true);
-        
-        GLfloat wTexPortion = inputStride/(float)texWidth;
-        GLfloat hTexPortion = inputHeight/(float)texHeight;
-
-        texCoordinates[3] = wTexPortion;
-        texCoordinates[7] = hTexPortion;
-        texCoordinates[9] = wTexPortion;
-        texCoordinates[10] = hTexPortion;
-    }
-
-    GLfloat wVideoPortion = (GLfloat) (videoWidth - 2 * paddingWidth) / (GLfloat) videoWidth;
-    GLfloat hVideoPortion = (GLfloat) (videoHeight - 2 * paddingHeight) / (GLfloat) videoHeight;
-    vertices[0] *= hVideoPortion;
-    vertices[3] *= hVideoPortion;
-    vertices[6] *= hVideoPortion;
-    vertices[9] *= hVideoPortion;
-    vertices[1] *= wVideoPortion;
-    vertices[4] *= wVideoPortion;
-    vertices[7] *= wVideoPortion;
-    vertices[10]*= wVideoPortion;
-
-    colorMatrix = useBGRA ? bgraMatrix : rgbaMatrix;
-
-    glViewport(0, 0, videoWidth, videoHeight);
-    checkGlError("glViewport");
-}
-
-int getTexSize(int size) {
-    int texSize = 2;
-    while (texSize < size) {
-        texSize = texSize * 2;
-    }
-    return texSize;
-}
 
 // Set up the MediaRecorder which runs in the same process as mediaserver
-void setupMediaRecorder() {
+void AbstractMediaRecorderOutput::setupMediaRecorder() {
     mr = new MediaRecorder();
     if (mr->initCheck() != NO_ERROR) {
         stop(231, "Error starting MediaRecorder");
@@ -230,13 +59,6 @@ void setupMediaRecorder() {
     mSTC = new Surface(iST);
     mANW = mSTC;
 
-    #if SCR_SDK_VERSION < 17
-    if (!useGl) {
-        if (native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU) != NO_ERROR) {
-            stop(224, "native_window_api_connect");
-        }
-    }
-    #endif
     int format = PIXEL_FORMAT_RGBA_8888;
     if (useYUV_P) {
         format = HAL_PIXEL_FORMAT_YV12;
@@ -252,15 +74,346 @@ void setupMediaRecorder() {
     }
 }
 
-void renderFrame() {
-    if (useGl) {
-        renderFrameGl();
-    } else {
-        renderFrameCPU();
+
+void AbstractMediaRecorderOutput::closeOutput(bool fromMainThread) {
+    tearDownMediaRecorder(fromMainThread);
+
+    if (outputFd >= 0) {
+         close(outputFd);
+         outputFd = -1;
     }
 }
 
-void renderFrameCPU() {
+
+void AbstractMediaRecorderOutput::tearDownMediaRecorder(bool async) {
+    if (mr.get() != NULL) {
+        if (mrRunning) {
+            if (async) {
+                stopMediaRecorderAsync();
+            } else {
+                stopMediaRecorder();
+            }
+        }
+        mr.clear();
+    }
+}
+
+
+void AbstractMediaRecorderOutput::stopMediaRecorderAsync() {
+    // MediaRecorder needs to be stopped from separate thread as couple frames may need to be rendered before mr->stop() returns.
+    if (pthread_create(&stoppingThread, NULL, &AbstractMediaRecorderOutput::stoppingThreadStart, (void *)this) != 0){
+        ALOGE("Can't create stopping thread, stopping synchronously");
+        stopMediaRecorder();
+    }
+    while (mrRunning) {
+        renderFrame();
+    }
+    pthread_join(stoppingThread, NULL);
+}
+
+
+void AbstractMediaRecorderOutput::stopMediaRecorder() {
+    if (mr.get() != NULL) {
+        ALOGV("Stopping MediaRecorder");
+        mr->stop();
+        mrRunning = false;
+        ALOGV("MediaRecorder Stopped");
+    }
+}
+
+
+void* AbstractMediaRecorderOutput::stoppingThreadStart(void* args) {
+    ALOGV("stoppingThreadStart");
+    AbstractMediaRecorderOutput* output = static_cast<AbstractMediaRecorderOutput*>(args);
+    output->stopMediaRecorder();
+    return NULL;
+}
+
+
+
+static const char sVertexShader[] =
+    "attribute vec4 vPosition;\n"
+    "attribute vec2 texCoord; \n"
+    "uniform mat4 vTransform;"
+    "varying vec2 tc; \n"
+    "void main() {\n"
+    "  tc = texCoord;\n"
+    "  gl_Position = vTransform * vPosition;\n"
+    "}\n";
+
+static const char sFragmentShader[] =
+    "precision mediump float;\n"
+    "uniform sampler2D textureSampler; \n"
+    "uniform mat4 colorTransform;"
+    "varying vec2 tc; \n"
+    "void main() {\n"
+    "  gl_FragColor.rgba = colorTransform * texture2D(textureSampler, tc); \n"
+    "}\n";
+
+
+static const char sFragmentShaderOES[] =
+    "#extension GL_OES_EGL_image_external : require\n"
+    "precision mediump float;\n"
+    "uniform samplerExternalOES textureSampler; \n"
+    "uniform mat4 colorTransform;"
+    "varying vec2 tc; \n"
+    "void main() {\n"
+    "  gl_FragColor.rgba = colorTransform * texture2D(textureSampler, tc); \n"
+    "}\n";
+
+static EGLint eglConfigAttribs[] = {
+            EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+            EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+            EGL_RED_SIZE, 8,
+            EGL_GREEN_SIZE, 8,
+            EGL_BLUE_SIZE, 8,
+            EGL_RECORDABLE_ANDROID, EGL_TRUE,
+            EGL_NONE };
+
+static EGLint eglContextAttribs[] = {
+            EGL_CONTEXT_CLIENT_VERSION, 2,
+            EGL_NONE };
+
+GLfloat GLMediaRecorderOutput::flipAndRotateMatrix[16] = {
+    0.0, 1.0, 0.0, 0.0,
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 0.0,-1.0, 0.0,
+    0.0, 0.0, 0.0, 1};
+
+GLfloat GLMediaRecorderOutput::flipMatrix[16] = {
+    1.0, 0.0, 0.0, 0.0,
+    0.0,-1.0, 0.0, 0.0,
+    0.0, 0.0,-1.0, 0.0,
+    0.0, 0.0, 0.0, 1};
+
+GLfloat GLMediaRecorderOutput::rgbaMatrix[16] = {
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 0.0,
+    0.0, 0.0, 0.0, 1.0};
+
+GLfloat GLMediaRecorderOutput::bgraMatrix[16] = {
+    0.0, 0.0, 1.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 1.0};
+
+void GLMediaRecorderOutput::setupOutput() {
+    AbstractMediaRecorderOutput::setupOutput();
+    setupEgl();
+    setupMediaRecorder();
+    setupGl();
+}
+
+
+void GLMediaRecorderOutput::setupEgl() {
+    ALOGV("setupEgl()");
+    mEglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (eglGetError() != EGL_SUCCESS || mEglDisplay == EGL_NO_DISPLAY) {
+        stop(207, "eglGetDisplay() failed");
+    }
+
+    EGLint majorVersion;
+    EGLint minorVersion;
+    eglInitialize(mEglDisplay, &majorVersion, &minorVersion);
+    if (eglGetError() != EGL_SUCCESS) {
+        stop(208, "eglInitialize() failed");
+    }
+
+    EGLint numConfigs = 0;
+    eglChooseConfig(mEglDisplay, eglConfigAttribs, &mEglconfig, 1, &numConfigs);
+    if (eglGetError() != EGL_SUCCESS  || numConfigs < 1) {
+        stop(209, "eglChooseConfig() failed");
+    }
+    mEglContext = eglCreateContext(mEglDisplay, mEglconfig, EGL_NO_CONTEXT, eglContextAttribs);
+    if (eglGetError() != EGL_SUCCESS || mEglContext == EGL_NO_CONTEXT) {
+        stop(210, "eglGetDisplay() failed");
+    }
+    ALOGV("EGL initialized");
+}
+
+
+void GLMediaRecorderOutput::setupGl() {
+    ALOGV("setup GL");
+
+    mEglSurface = eglCreateWindowSurface(mEglDisplay, mEglconfig, mANW.get(), NULL);
+    if (eglGetError() != EGL_SUCCESS || mEglSurface == EGL_NO_SURFACE) {
+        stop(214, "eglCreateWindowSurface() failed");
+    };
+
+    eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface, mEglContext);
+    if (eglGetError() != EGL_SUCCESS ) {
+        stop(215, "eglMakeCurrent() failed");
+    };
+
+    transformMatrix = rotateView ? flipAndRotateMatrix : flipMatrix;
+
+    if (useOes) {
+        mProgram = createProgram(sVertexShader, sFragmentShaderOES);
+    } else {
+        mProgram = createProgram(sVertexShader, sFragmentShader);
+    }
+    if (!mProgram) {
+        stop(212, "Could not create GL program.");
+    }
+
+    mvPositionHandle = glGetAttribLocation(mProgram, "vPosition");
+    mTexCoordHandle = glGetAttribLocation(mProgram, "texCoord");
+    checkGlError("glGetAttribLocation");
+
+    mvTransformHandle = glGetUniformLocation(mProgram, "vTransform");
+    checkGlError("glGetUniformLocation");
+
+    mColorTransformHandle = glGetUniformLocation(mProgram, "colorTransform");
+    checkGlError("glGetUniformLocation");
+
+    if (useOes) {
+        glBindTexture(GL_TEXTURE_EXTERNAL_OES, 1);
+        checkGlError("glBindTexture");
+
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        checkGlError("glTexParameteri");
+
+        texCoordinates[3]  = 1;
+        texCoordinates[7]  = 1;
+        texCoordinates[9]  = 1;
+        texCoordinates[10] = 1;
+    } else {
+        glDeleteTextures(1, &mTexture);
+        glGenTextures(1, &mTexture);
+        glBindTexture(GL_TEXTURE_2D, mTexture);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        checkGlError("texture setup");
+
+        int texWidth = getTexSize(inputStride);
+        int texHeight = getTexSize(inputHeight);
+
+        mPixels = (uint32_t*)malloc(4 * texWidth * texHeight);
+        if (mPixels == (uint32_t*)NULL) {
+            stop(211, "malloc failed");
+        }
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, mPixels);
+        checkGlError("glTexImage2D", true);
+        
+        GLfloat wTexPortion = inputStride/(float)texWidth;
+        GLfloat hTexPortion = inputHeight/(float)texHeight;
+
+        texCoordinates[3] = wTexPortion;
+        texCoordinates[7] = hTexPortion;
+        texCoordinates[9] = wTexPortion;
+        texCoordinates[10] = hTexPortion;
+    }
+
+    GLfloat wVideoPortion = (GLfloat) (videoWidth - 2 * paddingWidth) / (GLfloat) videoWidth;
+    GLfloat hVideoPortion = (GLfloat) (videoHeight - 2 * paddingHeight) / (GLfloat) videoHeight;
+    vertices[0] = -hVideoPortion;
+    vertices[3] =  hVideoPortion;
+    vertices[6] = -hVideoPortion;
+    vertices[9] =  hVideoPortion;
+    vertices[1] = -wVideoPortion;
+    vertices[4] = -wVideoPortion;
+    vertices[7] =  wVideoPortion;
+    vertices[10]=  wVideoPortion;
+
+    colorMatrix = useBGRA ? bgraMatrix : rgbaMatrix;
+
+    glViewport(0, 0, videoWidth, videoHeight);
+    checkGlError("glViewport");
+}
+
+
+int GLMediaRecorderOutput::getTexSize(int size) {
+    int texSize = 2;
+    while (texSize < size) {
+        texSize = texSize * 2;
+    }
+    return texSize;
+}
+
+
+
+void GLMediaRecorderOutput::renderFrame() {
+    updateInput();
+
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    if (!useOes) {
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, inputStride, inputHeight, GL_RGBA, GL_UNSIGNED_BYTE, inputBase);
+        checkGlError("glTexSubImage2D");
+    }
+
+    glUseProgram(mProgram);
+    checkGlError("glUseProgram");
+
+    glUniformMatrix4fv(mvTransformHandle, 1, GL_FALSE, transformMatrix);
+    checkGlError("glUniformMatrix4fv");
+
+    glUniformMatrix4fv(mColorTransformHandle, 1, GL_FALSE, colorMatrix);
+    checkGlError("glUniformMatrix4fv");
+
+    glVertexAttribPointer(mvPositionHandle, 3, GL_FLOAT, GL_FALSE, 0, vertices);
+    glEnableVertexAttribArray(mvPositionHandle);
+    glVertexAttribPointer(mTexCoordHandle, 3, GL_FLOAT, GL_FALSE, 0, texCoordinates);
+    glEnableVertexAttribArray(mTexCoordHandle);
+    checkGlError("vertexAttrib");
+
+    updateTexImage();
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    checkGlError("glDrawArrays");
+
+    if (mrRunning) {
+        eglSwapBuffers(mEglDisplay, mEglSurface);
+        if (eglGetError() != EGL_SUCCESS) {
+            ALOGW("eglSwapBuffers failed");
+        }
+    }
+}
+
+
+void GLMediaRecorderOutput::closeOutput(bool fromMainThread) {
+    AbstractMediaRecorderOutput::closeOutput(fromMainThread);
+    tearDownEgl();
+}
+
+
+void GLMediaRecorderOutput::tearDownEgl() {
+    if (mEglContext != EGL_NO_CONTEXT) {
+        eglDestroyContext(mEglDisplay, mEglContext);
+        mEglContext = EGL_NO_CONTEXT;
+    }
+    if (mEglSurface != EGL_NO_SURFACE) {
+        eglDestroySurface(mEglDisplay, mEglSurface);
+        mEglSurface = EGL_NO_SURFACE;
+    }
+    if (mEglDisplay != EGL_NO_DISPLAY) {
+        eglTerminate(mEglDisplay);
+        mEglDisplay = EGL_NO_DISPLAY;
+    }
+    if (eglGetError() != EGL_SUCCESS) {
+        ALOGE("tearDownEgl() failed");
+    }
+}
+
+
+void CPUMediaRecorderOutput::setupOutput() {
+    AbstractMediaRecorderOutput::setupOutput();
+    setupMediaRecorder();
+    #if SCR_SDK_VERSION < 17
+    if (native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU) != NO_ERROR) {
+        stop(224, "native_window_api_connect");
+    }
+    #endif
+}
+
+
+void CPUMediaRecorderOutput::renderFrame() {
     updateInput();
 
     ANativeWindowBuffer* anb;
@@ -349,7 +502,7 @@ void renderFrameCPU() {
     }
 }
 
-void copyRotateBuf(uint32_t* bufPixels, uint32_t* screen, int stride) {
+void CPUMediaRecorderOutput::copyRotateBuf(uint32_t* bufPixels, uint32_t* screen, int stride) {
     for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
         for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
             uint32_t color = screen[(x - paddingWidth) * inputStride + videoHeight - paddingHeight - y - 1];
@@ -357,7 +510,7 @@ void copyRotateBuf(uint32_t* bufPixels, uint32_t* screen, int stride) {
         }
     }
 }
-void copyBuf(uint32_t* bufPixels, uint32_t* screen, int stride) {
+void CPUMediaRecorderOutput::copyBuf(uint32_t* bufPixels, uint32_t* screen, int stride) {
     //TODO: test on some device with this screen orientation
     for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
         for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
@@ -367,14 +520,14 @@ void copyBuf(uint32_t* bufPixels, uint32_t* screen, int stride) {
     }
 }
 
-static inline uint32_t convertColor(uint32_t color) {
+inline uint32_t CPUMediaRecorderOutput::convertColor(uint32_t color) {
     if (useBGRA) {
         return (color & 0xFF00FF00) | ((color >> 16) & 0x000000FF) | ((color << 16) & 0x00FF0000);
     }
     return color;
 }
 
-void copyRotateYUVBuf(uint8_t* yuvPixels, uint8_t* screen, int stride) {
+void CPUMediaRecorderOutput::copyRotateYUVBuf(uint8_t* yuvPixels, uint8_t* screen, int stride) {
     for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
         for (int y = videoHeight - paddingHeight - 1; y >= paddingHeight; y--) {
             int idx = ((x - paddingWidth) * inputStride + videoHeight - paddingHeight - y - 1) * 4;
@@ -405,120 +558,16 @@ void copyRotateYUVBuf(uint8_t* yuvPixels, uint8_t* screen, int stride) {
     }
 }
 
-void renderFrameGl() {
-    updateInput();
 
-    glClearColor(0.0, 0.0, 0.0, 0.0);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    if (!useOes) {
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, inputStride, inputHeight, GL_RGBA, GL_UNSIGNED_BYTE, inputBase);
-        checkGlError("glTexSubImage2D");
-    }
-
-    glUseProgram(mProgram);
-    checkGlError("glUseProgram");
-
-    glUniformMatrix4fv(mvTransformHandle, 1, GL_FALSE, transformMatrix);
-    checkGlError("glUniformMatrix4fv");
-
-    glUniformMatrix4fv(mColorTransformHandle, 1, GL_FALSE, colorMatrix);
-    checkGlError("glUniformMatrix4fv");
-
-    glVertexAttribPointer(mvPositionHandle, 3, GL_FLOAT, GL_FALSE, 0, vertices);
-    glEnableVertexAttribArray(mvPositionHandle);
-    glVertexAttribPointer(mTexCoordHandle, 3, GL_FLOAT, GL_FALSE, 0, texCoordinates);
-    glEnableVertexAttribArray(mTexCoordHandle);
-    checkGlError("vertexAttrib");
-
-    updateTexImage();
-
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    checkGlError("glDrawArrays");
-
-    if (mrRunning) {
-        eglSwapBuffers(mEglDisplay, mEglSurface);
-        if (eglGetError() != EGL_SUCCESS) {
-            ALOGW("eglSwapBuffers failed");
-        }
-    }
-}
-
-void closeOutput(bool fromMainThread) {
-    tearDownMediaRecorder(fromMainThread);
-    if (useGl)
-        tearDownEgl();
-
-    if (outputFd >= 0) {
-         close(outputFd);
-         outputFd = -1;
-    }
-}
-
-void tearDownMediaRecorder(bool async) {
-    if (mr.get() != NULL) {
-        if (mrRunning) {
-            if (async) {
-                stopMediaRecorderAsync();
-            } else {
-                stopMediaRecorder();
-            }
-        }
-        mr.clear();
-    }
+void CPUMediaRecorderOutput::closeOutput(bool fromMainThread) {
+    AbstractMediaRecorderOutput::closeOutput(fromMainThread);
     if (mANW.get() != NULL) {
         #if SCR_SDK_VERSION < 17
-        if (!useGl) {
-            native_window_api_disconnect(mANW.get(), NATIVE_WINDOW_API_CPU);
-        }
+        native_window_api_disconnect(mANW.get(), NATIVE_WINDOW_API_CPU);
         #endif
     }
 }
 
-void stopMediaRecorderAsync() {
-    // MediaRecorder needs to be stopped from separate thread as couple frames may need to be rendered before mr->stop() returns.
-    if (pthread_create(&stoppingThread, NULL, &stoppingThreadStart, NULL) != 0){
-        ALOGE("Can't create stopping thread, stopping synchronously");
-        stopMediaRecorder();
-    }
-    while (mrRunning) {
-        renderFrame();
-    }
-    pthread_join(stoppingThread, NULL);
-}
-
-void stopMediaRecorder() {
-    if (mr.get() != NULL) {
-        ALOGV("Stopping MediaRecorder");
-        mr->stop();
-        mrRunning = false;
-        ALOGV("MediaRecorder Stopped");
-    }
-}
-
-void* stoppingThreadStart(void* args) {
-    ALOGV("stoppingThreadStart");
-    stopMediaRecorder();
-    return NULL;
-}
-
-void tearDownEgl() {
-    if (mEglContext != EGL_NO_CONTEXT) {
-        eglDestroyContext(mEglDisplay, mEglContext);
-        mEglContext = EGL_NO_CONTEXT;
-    }
-    if (mEglSurface != EGL_NO_SURFACE) {
-        eglDestroySurface(mEglDisplay, mEglSurface);
-        mEglSurface = EGL_NO_SURFACE;
-    }
-    if (mEglDisplay != EGL_NO_DISPLAY) {
-        eglTerminate(mEglDisplay);
-        mEglDisplay = EGL_NO_DISPLAY;
-    }
-    if (eglGetError() != EGL_SUCCESS) {
-        ALOGE("tearDownEgl() failed");
-    }
-}
 
 void SCRListener::notify(int msg, int ext1, int ext2)
 {
@@ -553,7 +602,7 @@ void SCRListener::notify(int msg, int ext1, int ext2)
 
 // OpenGL helpers
 
-void checkGlError(const char* op, bool critical) {
+void GLMediaRecorderOutput::checkGlError(const char* op, bool critical) {
     for (GLint error = glGetError(); error; error
             = glGetError()) {
         ALOGI("after %s() glError (0x%x)\n", op, error);
@@ -563,11 +612,11 @@ void checkGlError(const char* op, bool critical) {
     }
 }
 
-void checkGlError(const char* op) {
+void GLMediaRecorderOutput::checkGlError(const char* op) {
     checkGlError(op, false);
 }
 
-GLuint loadShader(GLenum shaderType, const char* pSource) {
+GLuint GLMediaRecorderOutput::loadShader(GLenum shaderType, const char* pSource) {
     GLuint shader = glCreateShader(shaderType);
     if (shader) {
         glShaderSource(shader, 1, &pSource, NULL);
@@ -593,7 +642,7 @@ GLuint loadShader(GLenum shaderType, const char* pSource) {
     return shader;
 }
 
-GLuint createProgram(const char* pVertexSource, const char* pFragmentSource) {
+GLuint GLMediaRecorderOutput::createProgram(const char* pVertexSource, const char* pFragmentSource) {
     GLuint vertexShader = loadShader(GL_VERTEX_SHADER, pVertexSource);
     if (!vertexShader) {
         return 0;

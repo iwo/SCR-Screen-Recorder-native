@@ -2,6 +2,7 @@
 #define SCREENREC_MAIN_H
 
 #include "screenrec.h"
+#include "mediarecorder_output.h"
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -46,6 +47,7 @@ int targetFrameTime = 0;
 bool mrRunning = false;
 
 // private
+ScrOutput *output;
 
 // pthreads
 pthread_t mainThread;

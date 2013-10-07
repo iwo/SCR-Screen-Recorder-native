@@ -35,7 +35,13 @@ int main(int argc, char* argv[]) {
 
     setupInput();
     adjustRotation();
-    setupOutput();
+
+    if (useGl) {
+        output = new GLMediaRecorderOutput();
+    } else {
+        output = new CPUMediaRecorderOutput();
+    }
+    output->setupOutput();
 
     listenForCommand();
 
@@ -51,7 +57,7 @@ int main(int argc, char* argv[]) {
         if (restrictFrameRate) {
             waitForNextFrame();
         }
-        renderFrame();
+        output->renderFrame();
     }
 
     if (!stopping) {
@@ -242,7 +248,7 @@ void stop(int error, bool fromMainThread, const char* message) {
     stopping = true;
     errorCode = error;
 
-    closeOutput(fromMainThread);
+    output->closeOutput(fromMainThread);
     closeInput();
 
     interruptCommandThread();
