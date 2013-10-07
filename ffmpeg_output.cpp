@@ -1,6 +1,6 @@
 #include "ffmpeg_output.h"
 
-void setupOutput() {
+void FFmpegOutput::setupOutput() {
     int ret;
 
     loadFFmpegComponents();
@@ -24,11 +24,11 @@ void setupOutput() {
     mrRunning = true;
 
     pthread_mutex_lock(&frameReadyMutex);
-    pthread_create(&encodingThread, NULL, encodingThreadStart, NULL);
+    pthread_create(&encodingThread, NULL, FFmpegOutput::encodingThreadStart, this);
 }
 
 
-void loadFFmpegComponents() {
+void FFmpegOutput::loadFFmpegComponents() {
     extern AVCodec ff_mpeg4_encoder;
     avcodec_register(&ff_mpeg4_encoder);
 
@@ -45,7 +45,7 @@ void loadFFmpegComponents() {
 }
 
 
-void setupOutputContext() {
+void FFmpegOutput::setupOutputContext() {
     avformat_alloc_output_context2(&oc, NULL, NULL, outputName);
     if (!oc) {
         ALOGE("Can't alloc output context");
@@ -54,7 +54,7 @@ void setupOutputContext() {
 }
 
 
-void setupVideoStream() {
+void FFmpegOutput::setupVideoStream() {
     AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_MPEG4);
 
     if (!codec) {
@@ -98,13 +98,13 @@ void setupVideoStream() {
     }
 }
 
-void setupFrames() {
+void FFmpegOutput::setupFrames() {
     frames[0] = createFrame();
     frames[1] = createFrame();
 }
 
 
-AVFrame *createFrame() {
+AVFrame *FFmpegOutput::createFrame() {
     int ret;
     AVCodecContext *c = videoStream->codec;
     AVFrame * frame = avcodec_alloc_frame();
@@ -124,7 +124,7 @@ AVFrame *createFrame() {
     return frame;
 }
 
-void setupAudioOutput() {
+void FFmpegOutput::setupAudioOutput() {
     int ret;
 
     AVCodec *audioCodec = avcodec_find_encoder(AV_CODEC_ID_AAC);
@@ -170,7 +170,7 @@ void setupAudioOutput() {
 }
 
 
-void setupOutputFile() {
+void FFmpegOutput::setupOutputFile() {
     int ret;
     ret = avio_open(&oc->pb, outputName, AVIO_FLAG_WRITE);
     if (ret < 0) {
@@ -185,14 +185,13 @@ void setupOutputFile() {
     }
 }
 
-
-void startAudioInput() {
+void FFmpegOutput::startAudioInput() {
     int ret;
 
     inSamplesSize = audioSamplingRate; // buffer up to one second of input audio data
     inSamples = new float[inSamplesSize];
 
-    audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT, AUDIO_CHANNEL_IN_MONO, 4096, &audioRecordCallback);
+    audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT, AUDIO_CHANNEL_IN_MONO, 4096, &staticAudioRecordCallback, this);
     ret = audioRecord->start();
 
     if (ret != OK) {
@@ -201,11 +200,14 @@ void startAudioInput() {
     }
 }
 
+static void staticAudioRecordCallback(int event, void* user, void *info) {
+   FFmpegOutput *output = (FFmpegOutput*)user;
+   output->audioRecordCallback(event, user, info);
+}
 
-void audioRecordCallback(int event, void* user, void *info) {
+void FFmpegOutput::audioRecordCallback(int event, void* user, void *info) {
     if (event != 0) return;
 
-    PERF_START(audio_in)
     AudioRecord::Buffer *buffer = (AudioRecord::Buffer*) info;
 
     pthread_mutex_lock(&inSamplesMutex);
@@ -218,14 +220,13 @@ void audioRecordCallback(int event, void* user, void *info) {
         }
     }
     pthread_mutex_unlock(&inSamplesMutex);
-    PERF_END(audio_in)
 }
 
-int availableSamplesCount() {
+inline int FFmpegOutput::availableSamplesCount() {
     return (inSamplesSize + inSamplesEnd - inSamplesStart) % inSamplesSize;
 }
 
-void getAudioFrame()
+void FFmpegOutput::getAudioFrame()
 {
     int samplesWritten = 0;
 
@@ -237,7 +238,7 @@ void getAudioFrame()
     pthread_mutex_unlock(&inSamplesMutex);
 }
 
-void writeAudioFrame() {
+void FFmpegOutput::writeAudioFrame() {
     AVCodecContext *c;
     AVPacket pkt;
     AVFrame *frame = avcodec_alloc_frame();
@@ -279,42 +280,40 @@ void writeAudioFrame() {
     av_free_packet(&pkt);
 }
 
-void writeVideoFrame() {
+void FFmpegOutput::writeVideoFrame() {
     pthread_mutex_lock(&frameEncMutex);
     videoFrame = frames[frameCount % 2];
     //fprintf(stderr, "Populate frame %d\n", (videoFrame == frames[0]) ? 0 : 1);fflush(stderr);
 
     videoFrame->pts = av_rescale_q(getTimeMs() - startTimeMs, (AVRational){1,1000}, videoStream->time_base);
 
-    PERF_START(transform)
     if (rotateView) {
         copyRotateYUVBuf(videoFrame->data, (uint8_t*)inputBase, videoFrame->linesize);
     } else {
         copyYUVBuf(videoFrame->data, (uint8_t*)inputBase, videoFrame->linesize);
     }
-    PERF_END(transform)
     //fprintf(stderr, "Frame ready %d\n", (videoFrame == frames[0]) ? 0 : 1);fflush(stderr);
     pthread_mutex_unlock(&frameReadyMutex);
 }
 
-void* encodingThreadStart(void* args) {
+void* FFmpegOutput::encodingThreadStart(void* args) {
+    FFmpegOutput *output = static_cast<FFmpegOutput*>(args);
     while (1) {
-        pthread_mutex_lock(&frameReadyMutex);
+        pthread_mutex_lock(&output->frameReadyMutex);
         if (!mrRunning) {
             break;
         }
-        AVFrame *f = videoFrame;
-        pthread_mutex_unlock(&frameEncMutex);
+        AVFrame *f = output->videoFrame;
+        pthread_mutex_unlock(&output->frameEncMutex);
         //fprintf(stderr, "Encode frame %d\n", (f == frames[0]) ? 0 : 1);fflush(stderr);
-        encodeAndSaveVideoFrame(f);
+        output->encodeAndSaveVideoFrame(f);
         //fprintf(stderr, "Frame encoded %d\n", (f == frames[0]) ? 0 : 1);fflush(stderr);
     }
     pthread_exit(NULL);
     return NULL;
 }
 
-void encodeAndSaveVideoFrame(AVFrame *frame) {
-    PERF_START(video_enc)
+void FFmpegOutput::encodeAndSaveVideoFrame(AVFrame *frame) {
 
     int ret, pktReceived;
     AVPacket pkt;
@@ -347,38 +346,27 @@ void encodeAndSaveVideoFrame(AVFrame *frame) {
         }
     }
     av_free_packet(&pkt);
-    PERF_END(video_enc)
 }
 
-void renderFrame() {
-    PERF_START(screenshot)
+void FFmpegOutput::renderFrame() {
     updateInput();
-    PERF_END(screenshot)
 
     frameCount++;
 
     writeVideoFrame();
 
-    PERF_START(audio_out)
     while (micAudio && availableSamplesCount() >= audioFrameSize) {
         writeAudioFrame();
     }
-    PERF_END(audio_out)
 }
 
-void closeOutput(bool fromMainThread) {
+void FFmpegOutput::closeOutput(bool fromMainThread) {
     mrRunning = false;
     pthread_mutex_unlock(&frameReadyMutex);
     pthread_join(encodingThread, NULL);
 
     fprintf(stderr, "avg fps %lld\n", frameCount * 1000 / (getTimeMs() - startTimeMs));
     fflush(stderr);
-
-    PERF_STATS(audio_out)
-    PERF_STATS(audio_in)
-    PERF_STATS(screenshot)
-    PERF_STATS(video_enc)
-    PERF_STATS(transform)
 
     av_write_trailer(oc);
 
@@ -398,13 +386,13 @@ void closeOutput(bool fromMainThread) {
     }
 }
 
-int64_t getTimeMs() {
+int64_t FFmpegOutput::getTimeMs() {
     timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     return now.tv_sec * 1000l + now.tv_nsec / 1000000l;
 }
 
-void copyRotateYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride) {
+void FFmpegOutput::copyRotateYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride) {
     for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
         for (int y = videoHeight - paddingHeight - 1; y >= paddingHeight; y--) {
             int idx = ((x - paddingWidth) * inputStride + videoHeight - paddingHeight - y - 1) * 4;
@@ -430,7 +418,7 @@ void copyRotateYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride) {
     }
 }
 
-void copyYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride) {
+void FFmpegOutput::copyYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride) {
     for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
         for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
 

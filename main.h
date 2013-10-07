@@ -3,6 +3,7 @@
 
 #include "screenrec.h"
 #include "mediarecorder_output.h"
+#include "ffmpeg_output.h"
 
 #include <stdio.h>
 #include <fcntl.h>

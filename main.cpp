@@ -36,10 +36,14 @@ int main(int argc, char* argv[]) {
     setupInput();
     adjustRotation();
 
-    if (useGl) {
-        output = new GLMediaRecorderOutput();
+    if (videoEncoder >= 0) {
+        if (useGl) {
+            output = new GLMediaRecorderOutput();
+        } else {
+            output = new CPUMediaRecorderOutput();
+        }
     } else {
-        output = new CPUMediaRecorderOutput();
+        output = new FFmpegOutput();
     }
     output->setupOutput();
 

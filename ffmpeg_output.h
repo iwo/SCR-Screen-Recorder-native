@@ -8,8 +8,6 @@
 #include <media/AudioRecord.h>
 #include <media/AudioSystem.h>
 
-using namespace android;
-
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -20,78 +18,69 @@ extern "C" {
 #include <libavutil/samplefmt.h>
 }
 
-AVFormatContext *oc;
-int64_t startTimeMs = 0;
+using namespace android;
 
-AVStream *videoStream;
-AVFrame *videoFrame;
-AVFrame *frames[2];
-int frameCount = 0;
+class FFmpegOutput : public ScrOutput {
+public:
+    FFmpegOutput() :
+        startTimeMs(0), frameCount(0), sampleCount(0) {
+        pthread_mutex_init(&frameReadyMutex, NULL);
+        pthread_mutex_init(&frameEncMutex, NULL);
+        pthread_mutex_init(&outputWriteMutex, NULL);
+        pthread_mutex_init(&inSamplesMutex, NULL);
+    }
+    virtual ~FFmpegOutput() {}
+    virtual void setupOutput();
+    virtual void renderFrame();
+    virtual void closeOutput(bool fromMainThread);
+    void audioRecordCallback(int event, void* user, void *info);
 
-AVStream *audioStream;
-int audioFrameSize;
-float *outSamples;
-int64_t sampleCount = 0;
+private:
 
-AudioRecord *audioRecord;
-int inSamplesSize;
-float *inSamples;
-int inSamplesStart, inSamplesEnd;
+    AVFormatContext *oc;
+    int64_t startTimeMs;
 
-pthread_t encodingThread;
-pthread_mutex_t frameReadyMutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t frameEncMutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t outputWriteMutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t inSamplesMutex = PTHREAD_MUTEX_INITIALIZER;
+    AVStream *videoStream;
+    AVFrame *videoFrame;
+    AVFrame *frames[2];
+    int frameCount;
 
-void* encodingThreadStart(void* args);
-void encodeAndSaveVideoFrame(AVFrame *frame);
+    AVStream *audioStream;
+    int audioFrameSize;
+    float *outSamples;
+    int64_t sampleCount;
 
-void loadFFmpegComponents();
-void setupOutputContext();
-void setupVideoStream();
-AVFrame * createFrame();
-void setupFrames();
-void setupAudioOutput();
-void setupOutputFile();
-void startAudioInput();
-void audioRecordCallback(int event, void* user, void *info);
-void writeAudioFrame();
-void writeVideoFrame();
-void copyRotateYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride);
-void copyYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride);
-int64_t getTimeMs();
+    AudioRecord *audioRecord;
+    int inSamplesSize;
+    float *inSamples;
+    int inSamplesStart, inSamplesEnd;
 
-#define PERF_INIT( name ) \
-    int64_t perf_time_##name = 0; \
-    int perf_count_##name = 0; \
-    int64_t perf_start_##name = 0;
+    pthread_t encodingThread;
+    pthread_mutex_t frameReadyMutex;
+    pthread_mutex_t frameEncMutex;
+    pthread_mutex_t outputWriteMutex;
+    pthread_mutex_t inSamplesMutex;
 
-#define PERF_START( name ) \
-    perf_start_##name = perf_getTimeUs();
+    static void* encodingThreadStart(void* args);
+    void encodeAndSaveVideoFrame(AVFrame *frame);
 
-#define PERF_END( name ) \
-    int64_t perf_current_time_##name = perf_getTimeUs() - perf_start_##name; \
-    perf_time_##name += perf_current_time_##name; \
-    perf_count_##name++;
+    void loadFFmpegComponents();
+    void setupOutputContext();
+    void setupVideoStream();
+    AVFrame * createFrame();
+    void setupFrames();
+    void setupAudioOutput();
+    void setupOutputFile();
+    void startAudioInput();
+    inline int availableSamplesCount();
+    void getAudioFrame();
+    void writeAudioFrame();
+    void writeVideoFrame();
+    void copyRotateYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride);
+    void copyYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride);
+    int64_t getTimeMs();
+};
 
-#define PERF_STATS( name ) \
-    fprintf(stderr, "PERF "#name"\tavg=%6lld\tfps limit %lld\n", perf_time_##name / perf_count_##name, 1000000l/(perf_time_##name / perf_count_##name)); \
-    fflush(stderr);
-
-
-int64_t perf_getTimeUs() {
-    timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    return (int64_t)now.tv_sec * 1000000l + now.tv_nsec / 1000l;
-}
-
-PERF_INIT(screenshot)
-PERF_INIT(video_enc)
-PERF_INIT(audio_out)
-PERF_INIT(audio_in)
-PERF_INIT(transform)
-
-
+static void staticAudioRecordCallback(int event, void* user, void *info);
 
 #endif
