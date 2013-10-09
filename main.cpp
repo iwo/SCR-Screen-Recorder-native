@@ -58,16 +58,24 @@ int main(int argc, char* argv[]) {
     fflush(stdout);
     ALOGV("Setup finished. Starting rendering loop.");
 
-    timespec frameStart;
-    timespec frameEnd;
     targetFrameTime = 1000000 / frameRate;
+    int64_t startTime = getTimeMs();
 
     while (mrRunning && !finished) {
         if (restrictFrameRate) {
             waitForNextFrame();
         }
+        frameCount++;
         output->renderFrame();
     }
+
+    int recordingTime = getTimeMs() - startTime;
+    float fps = -1.0f;
+    if (recordingTime > 0) {
+        fps = 1000.0f * frameCount / recordingTime;
+    }
+    printf("fps %f\n", fps);
+    fflush(stdout);
 
     if (!stopping) {
         stop(0, "finished");
@@ -308,4 +316,10 @@ void waitForNextFrame() {
     if (time < targetFrameTime) {
         usleep(targetFrameTime - time);
     }
+}
+
+int64_t getTimeMs() {
+    timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return now.tv_sec * 1000l + now.tv_nsec / 1000000l;
 }

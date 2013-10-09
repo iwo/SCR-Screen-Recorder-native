@@ -47,6 +47,7 @@ bool stopping = false;
 int errorCode = 0;
 int targetFrameTime = 0;
 bool mrRunning = false;
+int frameCount = 0;
 
 // private
 ScrOutput *output;

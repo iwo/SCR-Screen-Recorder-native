@@ -363,8 +363,6 @@ void FFmpegOutput::encodeAndSaveVideoFrame(AVFrame *frame) {
 void FFmpegOutput::renderFrame() {
     updateInput();
 
-    frameCount++;
-
     writeVideoFrame();
 
     while (micAudio && availableSamplesCount() >= audioFrameSize) {
@@ -376,9 +374,6 @@ void FFmpegOutput::closeOutput(bool fromMainThread) {
     mrRunning = false;
     pthread_mutex_unlock(&frameReadyMutex);
     pthread_join(encodingThread, NULL);
-
-    fprintf(stderr, "avg fps %lld\n", frameCount * 1000 / (getTimeMs() - startTimeMs));
-    fflush(stderr);
 
     av_write_trailer(oc);
 
@@ -396,12 +391,6 @@ void FFmpegOutput::closeOutput(bool fromMainThread) {
     if (micAudio) {
         audioRecord->stop();
     }
-}
-
-int64_t FFmpegOutput::getTimeMs() {
-    timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    return now.tv_sec * 1000l + now.tv_nsec / 1000000l;
 }
 
 void FFmpegOutput::copyRotateYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride) {

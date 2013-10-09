@@ -23,7 +23,7 @@ using namespace android;
 class FFmpegOutput : public ScrOutput {
 public:
     FFmpegOutput() :
-        startTimeMs(0), frameCount(0), sampleCount(0) {
+        startTimeMs(0), sampleCount(0) {
         pthread_mutex_init(&frameReadyMutex, NULL);
         pthread_mutex_init(&frameEncMutex, NULL);
         pthread_mutex_init(&outputWriteMutex, NULL);
@@ -43,7 +43,6 @@ private:
     AVStream *videoStream;
     AVFrame *videoFrame;
     AVFrame *frames[2];
-    int frameCount;
 
     AVStream *audioStream;
     int audioFrameSize;
@@ -78,7 +77,6 @@ private:
     void writeVideoFrame();
     void copyRotateYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride);
     void copyYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride);
-    int64_t getTimeMs();
 };
 
 static void staticAudioRecordCallback(int event, void* user, void *info);

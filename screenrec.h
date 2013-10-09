@@ -55,6 +55,7 @@ extern bool rotateView;
 // global state
 extern bool stopping;
 extern bool mrRunning;
+extern int frameCount;
 
 extern pthread_t stoppingThread;
 
@@ -65,6 +66,7 @@ void updateTexImage(); // check if it can't be removed after moving updateInput(
 void stop(int error, const char* message);
 void stop(int error, bool fromMainThread, const char* message);
 void closeInput();
+int64_t getTimeMs();
 
 class ScrOutput {
 public:
