@@ -70,6 +70,7 @@ void getColorFormat();
 void getVideoBitrate();
 void getAudioSamplingRate();
 void getVideoEncoder();
+void getAllowVerticalFrames();
 void trim(char* str);
 void closeOutput();
 void closeInput();

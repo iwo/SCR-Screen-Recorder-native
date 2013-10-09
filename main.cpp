@@ -26,9 +26,10 @@ int main(int argc, char* argv[]) {
     getVideoBitrate();
     getAudioSamplingRate();
     getVideoEncoder();
+    getAllowVerticalFrames();
 
-    ALOGI("SETTINGS rotation: %d, micAudio: %s, resolution: %d x %d, padding: %d x %d, frameRate: %d, mode: %s, colorFix: %s",
-          rotation, micAudio ? "true" : "false", reqWidth, reqHeight, paddingWidth, paddingHeight, frameRate, useGl ? "GPU" : "CPU", useBGRA ? "true" : "false");
+    ALOGI("SETTINGS rotation: %d, micAudio: %d, resolution: %d x %d, padding: %d x %d, frameRate: %d, mode: %s, colorFix: %d, videoEncoder: %d, verticalFrames: %d",
+          rotation, micAudio, reqWidth, reqHeight, paddingWidth, paddingHeight, frameRate, useGl ? "GPU" : "CPU", useBGRA, videoEncoder, allowVerticalFrames);
 
     printf("configured\n");
     fflush(stdout);
@@ -163,6 +164,12 @@ void getVideoEncoder() {
     char encoder[4];
     fgets(encoder, 4, stdin);
     videoEncoder = atoi(encoder);
+}
+
+void getAllowVerticalFrames() {
+    char allow[4];
+    fgets(allow, 4, stdin);
+    allowVerticalFrames = (atoi(allow) > 0);
 }
 
 void trim(char* str) {
