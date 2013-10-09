@@ -121,6 +121,8 @@ AVFrame *FFmpegOutput::createFrame() {
         ALOGE("Could not allocate raw picture buffer");
         stop(235, "");
     }
+    memset(frame->data[1], 128, c->height / 2 * frame->linesize[1]);
+    memset(frame->data[2], 128, c->height / 2 * frame->linesize[2]);
     return frame;
 }
 
