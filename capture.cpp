@@ -66,15 +66,33 @@ void setupInput() {
 
 #endif // SCR_FB
 
-    if (allowVerticalFrames || inputWidth > inputHeight) {
+    if (allowVerticalFrames && inputWidth < inputHeight && (rotation == 0 || rotation == 180)) {
+        swapPadding();
         videoWidth = inputWidth + 2 * paddingWidth;
         videoHeight = inputHeight + 2 * paddingHeight;
         rotateView = false;
-    } else {
+    } else if (allowVerticalFrames && inputWidth > inputHeight && (rotation == 90 || rotation == 270)) {
+        swapPadding();
         videoWidth = inputHeight + 2 * paddingWidth;
         videoHeight = inputWidth + 2 * paddingHeight;
         rotateView = true;
+    } else {
+        if (inputWidth > inputHeight) {
+            videoWidth = inputWidth + 2 * paddingWidth;
+            videoHeight = inputHeight + 2 * paddingHeight;
+            rotateView = false;
+        } else {
+            videoWidth = inputHeight + 2 * paddingWidth;
+            videoHeight = inputWidth + 2 * paddingHeight;
+            rotateView = true;
+        }
     }
+}
+
+void swapPadding() {
+    int tmp = paddingWidth;
+    paddingWidth = paddingHeight;
+    paddingHeight = tmp;
 }
 
 void adjustRotation() {

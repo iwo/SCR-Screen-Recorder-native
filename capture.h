@@ -52,6 +52,7 @@ sp<GLConsumer> glConsumer;
 #endif // SCR_SDK_VERSION 18
 #endif //SCR_FB
 
+void swapPadding();
 void screenshotUpdate(int reqWidth, int reqHeight);
 
 #endif
