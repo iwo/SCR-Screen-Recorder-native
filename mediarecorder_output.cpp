@@ -311,14 +311,21 @@ void GLMediaRecorderOutput::setupGl() {
 
     GLfloat wVideoPortion = (GLfloat) (videoWidth - 2 * paddingWidth) / (GLfloat) videoWidth;
     GLfloat hVideoPortion = (GLfloat) (videoHeight - 2 * paddingHeight) / (GLfloat) videoHeight;
-    vertices[0] = -hVideoPortion;
-    vertices[3] =  hVideoPortion;
-    vertices[6] = -hVideoPortion;
-    vertices[9] =  hVideoPortion;
-    vertices[1] = -wVideoPortion;
-    vertices[4] = -wVideoPortion;
-    vertices[7] =  wVideoPortion;
-    vertices[10]=  wVideoPortion;
+
+    //TODO: use GL uniforms instead of updating matrices
+    if (rotateView) {
+        GLfloat tmp = wVideoPortion;
+        wVideoPortion = hVideoPortion;
+        hVideoPortion = tmp;
+    }
+    vertices[0] = -wVideoPortion;
+    vertices[3] =  wVideoPortion;
+    vertices[6] = -wVideoPortion;
+    vertices[9] =  wVideoPortion;
+    vertices[1] = -hVideoPortion;
+    vertices[4] = -hVideoPortion;
+    vertices[7] =  hVideoPortion;
+    vertices[10]=  hVideoPortion;
 
     colorMatrix = useBGRA ? bgraMatrix : rgbaMatrix;
 
@@ -480,7 +487,7 @@ void CPUMediaRecorderOutput::renderFrame() {
         if (useYUV_P || useYUV_SP) {
             stop(232, "not implemented");
         } else {
-            if (videoWidth == stride && !useBGRA) {
+            if (videoWidth == stride && !useBGRA && paddingWidth == 0 && paddingHeight == 0) {
                 memcpy(bufPixels, screen, videoWidth * videoHeight * 4);
             } else {
                 copyBuf(bufPixels, screen, stride);
