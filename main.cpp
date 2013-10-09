@@ -34,6 +34,10 @@ int main(int argc, char* argv[]) {
     printf("configured\n");
     fflush(stdout);
 
+    if (videoEncoder < 0) {
+        useOes = false;
+    }
+
     setupInput();
     adjustRotation();
 
