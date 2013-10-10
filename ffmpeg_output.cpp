@@ -297,7 +297,13 @@ void FFmpegOutput::writeVideoFrame() {
     videoFrame = frames[frameCount % 2];
     //fprintf(stderr, "Populate frame %d\n", (videoFrame == frames[0]) ? 0 : 1);fflush(stderr);
 
-    videoFrame->pts = av_rescale_q(getTimeMs() - startTimeMs, (AVRational){1,1000}, videoStream->time_base);
+    int64_t ptsMs = getTimeMs() - startTimeMs;
+    #ifdef SCR_FREE
+    if (ptsMs > 200000) {
+        stop(230, "max recording duration reached");
+    }
+    #endif
+    videoFrame->pts = av_rescale_q(ptsMs, (AVRational){1,1000}, videoStream->time_base);
 
     if (rotateView) {
         copyRotateYUVBuf(videoFrame->data, (uint8_t*)inputBase, videoFrame->linesize);
