@@ -83,6 +83,7 @@ int main(int argc, char* argv[]) {
 
     interruptCommandThread();
 
+    fixFilePermissions();
     return errorCode;
 }
 
@@ -277,7 +278,15 @@ void stop(int error, bool fromMainThread, const char* message) {
     interruptCommandThread();
 
     if (fromMainThread) {
+        fixFilePermissions();
         exit(errorCode);
+    }
+}
+
+void fixFilePermissions() {
+    // on SD Card this will be ignored and in other locations this will give read access for everyone (Gallery etc.)
+    if (chmod(outputName, 0664) < 0) {
+        ALOGW("can't change file mode %s (%s)", outputName, strerror(errno));
     }
 }
 

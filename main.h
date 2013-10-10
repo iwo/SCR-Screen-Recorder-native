@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
+#include <sys/stat.h>
 #include <pthread.h>
 #include <cutils/log.h>
 #include <sys/time.h>
@@ -82,6 +84,7 @@ void listenForCommand();
 void interruptCommandThread();
 void sigpipeHandler(int param);
 void sigusr1Handler(int param);
+void fixFilePermissions();
 const char* getThreadName();
 
 #endif
