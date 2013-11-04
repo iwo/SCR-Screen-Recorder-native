@@ -7,6 +7,8 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <cutils/log.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 
 #include <media/mediarecorder.h>
 #if SCR_SDK_VERSION >= 16

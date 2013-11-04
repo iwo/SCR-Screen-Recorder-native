@@ -50,6 +50,9 @@ sp<IBinder> display;
 #if SCR_SDK_VERSION >= 18
 sp<GLConsumer> glConsumer;
 #endif // SCR_SDK_VERSION 18
+#if SCR_SDK_VERSION >= 19
+sp<BufferQueue> bufferQueue;
+#endif // SCR_SDK_VERSION 19
 #endif //SCR_FB
 
 void swapPadding();
