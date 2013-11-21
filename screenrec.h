@@ -5,6 +5,7 @@
 #define LOG_TAG "screenrec"
 
 #include <pthread.h>
+#include <cutils/log.h>
 
 #if SCR_SDK_VERSION < 16
 #include <system/audio.h>
@@ -22,10 +23,15 @@
 #define FRAME_RATE 15
 #endif //SCR_FB
 
+// constants corresponding to AudioSource enum
+#define SCR_AUDIO_MUTE 'x'
+#define SCR_AUDIO_MIC 'm'
+#define SCR_AUDIO_INTERNAL 'i'
+
 // Configuration parameters
 extern char outputName [512];
 extern int rotation;
-extern bool micAudio;
+extern char audioSource;
 extern int reqWidth;
 extern int reqHeight;
 extern int paddingWidth;
@@ -67,6 +73,7 @@ void stop(int error, const char* message);
 void stop(int error, bool fromMainThread, const char* message);
 void closeInput();
 int64_t getTimeMs();
+void trim(char* str);
 
 class ScrOutput {
 public:

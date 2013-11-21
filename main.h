@@ -4,6 +4,7 @@
 #include "screenrec.h"
 #include "mediarecorder_output.h"
 #include "ffmpeg_output.h"
+#include "audio_hal_installer.h"
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -22,7 +23,7 @@
 // Configuration parameters
 char outputName [512];
 int rotation;
-bool micAudio = false;
+char audioSource = SCR_AUDIO_MUTE;
 int reqWidth = 0;
 int reqHeight = 0;
 int paddingWidth = 0;
@@ -86,5 +87,6 @@ void sigpipeHandler(int param);
 void sigusr1Handler(int param);
 void fixFilePermissions();
 const char* getThreadName();
+int processCommand();
 
 #endif

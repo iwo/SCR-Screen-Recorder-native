@@ -16,6 +16,10 @@ int main(int argc, char* argv[]) {
     commandThread = mainThread; // will be changed when command thread is started
 
     getOutputName();
+    if (outputName[0] != '/') {
+        return processCommand();
+    }
+
     getRotation();
     getAudioSetting();
     getResolution();
@@ -28,8 +32,8 @@ int main(int argc, char* argv[]) {
     getVideoEncoder();
     getAllowVerticalFrames();
 
-    ALOGI("SETTINGS rotation: %d, micAudio: %d, resolution: %d x %d, padding: %d x %d, frameRate: %d, mode: %s, colorFix: %d, videoEncoder: %d, verticalFrames: %d",
-          rotation, micAudio, reqWidth, reqHeight, paddingWidth, paddingHeight, frameRate, useGl ? "GPU" : "CPU", useBGRA, videoEncoder, allowVerticalFrames);
+    ALOGI("SETTINGS rotation: %d, audioSource: %c, resolution: %d x %d, padding: %d x %d, frameRate: %d, mode: %s, colorFix: %d, videoEncoder: %d, verticalFrames: %d",
+          rotation, audioSource, reqWidth, reqHeight, paddingWidth, paddingHeight, frameRate, useGl ? "GPU" : "CPU", useBGRA, videoEncoder, allowVerticalFrames);
 
     printf("configured\n");
     fflush(stdout);
@@ -85,6 +89,15 @@ int main(int argc, char* argv[]) {
 
     fixFilePermissions();
     return errorCode;
+}
+
+int processCommand() {
+    if (strncmp(outputName, "install_audio", 13) == 0) {
+        return installAudioHAL();
+    } else if (strncmp(outputName, "uninstall_audio", 15) == 0) {
+        return uninstallAudioHAL();
+    }
+    return 166;
 }
 
 void getOutputName() {
@@ -207,11 +220,7 @@ void getAudioSetting() {
     if (fgets(audio, 8, stdin) == NULL) {
         stop(221, "No audio setting specified");
     }
-    if (audio[0] == 'm') {
-        micAudio = true;
-    } else {
-        micAudio = false;
-    }
+    audioSource = audio[0] == '\n' ? SCR_AUDIO_MUTE : audio[0];
 }
 
 void listenForCommand() {

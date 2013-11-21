@@ -9,13 +9,13 @@ void FFmpegOutput::setupOutput() {
     setupVideoStream();
     setupFrames();
 
-    if (micAudio) {
+    if (audioSource != SCR_AUDIO_MUTE) {
         setupAudioOutput();
     }
 
     setupOutputFile();
 
-    if (micAudio) {
+    if (audioSource != SCR_AUDIO_MUTE) {
         startAudioInput();
     }
 
@@ -32,7 +32,7 @@ void FFmpegOutput::loadFFmpegComponents() {
     extern AVCodec ff_mpeg4_encoder;
     avcodec_register(&ff_mpeg4_encoder);
 
-    if (micAudio) {
+    if (audioSource != SCR_AUDIO_MUTE) {
         extern AVCodec ff_aac_encoder;
         avcodec_register(&ff_aac_encoder);
     }
@@ -371,7 +371,7 @@ void FFmpegOutput::renderFrame() {
 
     writeVideoFrame();
 
-    while (micAudio && availableSamplesCount() >= audioFrameSize) {
+    while (audioSource != SCR_AUDIO_MUTE && availableSamplesCount() >= audioFrameSize) {
         writeAudioFrame();
     }
 }
@@ -394,7 +394,7 @@ void FFmpegOutput::closeOutput(bool fromMainThread) {
     /* free the stream */
     avformat_free_context(oc);
 
-    if (micAudio) {
+    if (audioSource != SCR_AUDIO_MUTE) {
         audioRecord->stop();
     }
 }

@@ -21,12 +21,12 @@ void AbstractMediaRecorderOutput::setupMediaRecorder() {
     sp<SCRListener> listener = new SCRListener();
     mr->setListener(listener);
     mr->setVideoSource(VIDEO_SOURCE_GRALLOC_BUFFER);
-    if (micAudio) {
+    if (audioSource != SCR_AUDIO_MUTE) {
         mr->setAudioSource(AUDIO_SOURCE_MIC);
     }
     mr->setOutputFormat(OUTPUT_FORMAT_MPEG_4);
     mr->setVideoEncoder(videoEncoder);
-    if (micAudio) {
+    if (audioSource != SCR_AUDIO_MUTE) {
         mr->setAudioEncoder(AUDIO_ENCODER_AAC);
         mr->setParameters(String8::format("audio-param-sampling-rate=%d", audioSamplingRate));
         mr->setParameters(String8("audio-param-encoding-bitrate=128000"));

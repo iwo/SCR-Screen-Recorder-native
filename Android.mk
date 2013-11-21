@@ -30,6 +30,7 @@ SCR_SRC_FILES := \
     mediarecorder_output.cpp \
     ffmpeg_output.cpp \
     capture.cpp \
+    audio_hal_installer.cpp \
     main.cpp \
 
 SCR_LDLIBS += -lm
