@@ -6,6 +6,7 @@
 
 #include <pthread.h>
 #include <cutils/log.h>
+#include <errno.h>
 
 #if SCR_SDK_VERSION < 16
 #include <system/audio.h>
