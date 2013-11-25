@@ -285,7 +285,9 @@ void stop(int error, bool fromMainThread, const char* message) {
     stopping = true;
     errorCode = error;
 
-    output->closeOutput(fromMainThread);
+    if (output != NULL) {
+        output->closeOutput(fromMainThread);
+    }
     closeInput();
 
     interruptCommandThread();
