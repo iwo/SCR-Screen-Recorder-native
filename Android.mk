@@ -1,5 +1,7 @@
 LOCAL_PATH := $(call my-dir)
 
+SCR_FFMPEG := y
+
 SCR_SHARED_LIBRARIES := \
     libcutils \
     libEGL \
@@ -11,29 +13,37 @@ SCR_SHARED_LIBRARIES := \
     libGLESv2 \
     libz \
 
-SCR_STATIC_LIBRARIES := \
-    libavdevice-1.2                        \
-    libavformat-1.2                        \
-    libavfilter-1.2                        \
-    libavcodec-1.2                         \
-    libswresample-1.2                      \
-    libswscale-1.2                         \
-    libavutil-1.2                          \
-
-SCR_C_INCLUDES := \
-    external/ffmpeg-1.2.android \
-    external/ffmpeg-1.2.android/android/full-userdebug \
-
-SCR_CFLAGS := -D__STDC_CONSTANT_MACROS -DSCR_SDK_VERSION=$(PLATFORM_SDK_VERSION)
-
 SCR_SRC_FILES := \
     mediarecorder_output.cpp \
-    ffmpeg_output.cpp \
     capture.cpp \
     audio_hal_installer.cpp \
     main.cpp \
 
-SCR_LDLIBS += -lm
+SCR_CFLAGS := -D__STDC_CONSTANT_MACROS -DSCR_SDK_VERSION=$(PLATFORM_SDK_VERSION)
+
+ifdef SCR_FFMPEG
+    SCR_STATIC_LIBRARIES += \
+        libavdevice-1.2     \
+        libavformat-1.2     \
+        libavfilter-1.2     \
+        libavcodec-1.2      \
+        libswresample-1.2   \
+        libswscale-1.2      \
+        libavutil-1.2       \
+
+    SCR_C_INCLUDES += \
+        external/ffmpeg-1.2.android \
+        external/ffmpeg-1.2.android/android/full-userdebug \
+
+    SCR_CFLAGS += -DSCR_FFMPEG
+
+    SCR_LDLIBS += -lm
+
+    SCR_SRC_FILES += \
+        ffmpeg_output.cpp \
+
+endif
+
 include $(CLEAR_VARS)
 
 

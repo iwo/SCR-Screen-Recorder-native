@@ -3,7 +3,9 @@
 
 #include "screenrec.h"
 #include "mediarecorder_output.h"
+#ifdef SCR_FFMPEG
 #include "ffmpeg_output.h"
+#endif
 #include "audio_hal_installer.h"
 
 #include <stdio.h>

@@ -52,7 +52,11 @@ int main(int argc, char* argv[]) {
             output = new CPUMediaRecorderOutput();
         }
     } else {
-        output = new FFmpegOutput();
+        #ifdef SCR_FFMPEG
+            output = new FFmpegOutput();
+        #else
+            stop(199, "encoder not supported");
+        #endif
     }
     output->setupOutput();
 
