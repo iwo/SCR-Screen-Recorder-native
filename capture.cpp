@@ -103,6 +103,8 @@ void adjustRotation() {
 
 
 void updateInput() {
+    if (stopping)
+        return;
 #ifdef SCR_FB
     // it's still flickering, maybe ioctl(fd, FBIO_WAITFORVSYNC, &crt); would help
     if (ioctl(fbFd, FBIOGET_VSCREENINFO, &fbInfo) != 0) {
