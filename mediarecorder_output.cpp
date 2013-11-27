@@ -350,7 +350,7 @@ void GLMediaRecorderOutput::renderFrame() {
     glClearColor(0.0, 0.0, 0.0, 0.0);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    if (!useOes) {
+    if (!useOes && inputBase != NULL) {
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, inputStride, inputHeight, GL_RGBA, GL_UNSIGNED_BYTE, inputBase);
         checkGlError("glTexSubImage2D");
     }
@@ -465,10 +465,26 @@ void CPUMediaRecorderOutput::renderFrame() {
     mANW->lockBuffer(mANW.get(), buf->getNativeBuffer());
     #endif
 
-    // Fill the buffer
+    if (inputBase != NULL) {
+        fillBuffer(buf);
+    }
+
+    #if SCR_SDK_VERSION > 16
+    rv = mANW->queueBuffer(mANW.get(), buf->getNativeBuffer(), -1);
+    #else
+    rv = mANW->queueBuffer(mANW.get(), buf->getNativeBuffer());
+    #endif
+
+    if (rv != NO_ERROR) {
+        if (stopping) return;
+        stop(245, "mANW->queueBuffer");
+    }
+}
+
+void CPUMediaRecorderOutput::fillBuffer(sp<GraphicBuffer> buf) {
     uint32_t* bufPixels = NULL;
     uint32_t* screen = (uint32_t*) inputBase;
-    rv = buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)(&bufPixels));
+    status_t rv = buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)(&bufPixels));
 
     if (rv != NO_ERROR) {
         if (stopping) return;
@@ -496,17 +512,6 @@ void CPUMediaRecorderOutput::renderFrame() {
     }
 
     buf->unlock();
-
-    #if SCR_SDK_VERSION > 16
-    rv = mANW->queueBuffer(mANW.get(), buf->getNativeBuffer(), -1);
-    #else
-    rv = mANW->queueBuffer(mANW.get(), buf->getNativeBuffer());
-    #endif
-
-    if (rv != NO_ERROR) {
-        if (stopping) return;
-        stop(245, "mANW->queueBuffer");
-    }
 }
 
 void CPUMediaRecorderOutput::copyRotateBuf(uint32_t* bufPixels, uint32_t* screen, int stride) {

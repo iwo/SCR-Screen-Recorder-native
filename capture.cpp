@@ -135,27 +135,33 @@ void updateInput() {
         }
         #endif // SCR_SDK_VERSION
     } else {
-        screenshotUpdate(reqWidth, reqHeight);
-        inputBase = screenshot.getPixels();
+        inputBase = NULL;
+        if (screenshotUpdate(reqWidth, reqHeight) == NO_ERROR) {
+            inputBase = screenshot.getPixels();
+        }
     }
 #endif
 }
 
-void screenshotUpdate(int reqWidth, int reqHeight) {
+status_t screenshotUpdate(int reqWidth, int reqHeight) {
+    status_t err = NO_ERROR;
+
     #ifndef SCR_FB
     #if SCR_SDK_VERSION >= 18
         screenshot.release();
     #endif
+
     #if SCR_SDK_VERSION >= 17
-    if (screenshot.update(display, reqWidth, reqHeight) != NO_ERROR) {
-        stop(217, "update failed");
-    }
+    err = screenshot.update(display, reqWidth, reqHeight);
     #else
-    if (screenshot.update(reqWidth, reqHeight) != NO_ERROR) {
+    err = screenshot.update(reqWidth, reqHeight);
+    #endif // SCR_SDK_VERSION
+
+    if (err != NO_ERROR) {
         stop(217, "update failed");
     }
-    #endif // SCR_SDK_VERSION
     #endif // ndef SCR_FB
+    return err;
 }
 
 void closeInput() {

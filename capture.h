@@ -56,6 +56,6 @@ sp<BufferQueue> bufferQueue;
 #endif //SCR_FB
 
 void swapPadding();
-void screenshotUpdate(int reqWidth, int reqHeight);
+status_t screenshotUpdate(int reqWidth, int reqHeight);
 
 #endif

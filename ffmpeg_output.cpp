@@ -305,10 +305,12 @@ void FFmpegOutput::writeVideoFrame() {
     #endif
     videoFrame->pts = av_rescale_q(ptsMs, (AVRational){1,1000}, videoStream->time_base);
 
-    if (rotateView) {
-        copyRotateYUVBuf(videoFrame->data, (uint8_t*)inputBase, videoFrame->linesize);
-    } else {
-        copyYUVBuf(videoFrame->data, (uint8_t*)inputBase, videoFrame->linesize);
+    if (inputBase != NULL) {
+        if (rotateView) {
+            copyRotateYUVBuf(videoFrame->data, (uint8_t*)inputBase, videoFrame->linesize);
+        } else {
+            copyYUVBuf(videoFrame->data, (uint8_t*)inputBase, videoFrame->linesize);
+        }
     }
     //fprintf(stderr, "Frame ready %d\n", (videoFrame == frames[0]) ? 0 : 1);fflush(stderr);
     pthread_mutex_unlock(&frameReadyMutex);
