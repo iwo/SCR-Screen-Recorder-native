@@ -128,7 +128,7 @@ void AbstractMediaRecorderOutput::stopMediaRecorderAsync() {
         ALOGE("Can't create stopping thread, stopping synchronously");
         stopMediaRecorder();
     }
-    while (mrRunning) {
+    while (mrRunning && !videoSourceError) {
         renderFrame();
     }
     pthread_join(stoppingThread, NULL);
@@ -370,6 +370,7 @@ int GLMediaRecorderOutput::getTexSize(int size) {
 
 
 void GLMediaRecorderOutput::renderFrame() {
+    if (videoSourceError) return;
     updateInput();
 
     glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -403,7 +404,10 @@ void GLMediaRecorderOutput::renderFrame() {
     if (mrRunning) {
         eglSwapBuffers(mEglDisplay, mEglSurface);
         if (eglGetError() != EGL_SUCCESS) {
-            ALOGW("eglSwapBuffers failed");
+            videoSourceError = true;
+            if (!stopping) {
+                stop(243, "eglSwapBuffers failed");
+            }
         }
     }
 }
@@ -448,6 +452,7 @@ void CPUMediaRecorderOutput::setupOutput() {
 
 
 void CPUMediaRecorderOutput::renderFrame() {
+    if (videoSourceError) return;
     updateInput();
 
     ANativeWindowBuffer* anb;
@@ -473,17 +478,18 @@ void CPUMediaRecorderOutput::renderFrame() {
     rv = mANW->dequeueBuffer(mANW.get(), &anb);
     #endif
 
-    if (rv != NO_ERROR) {
-        if (stopping) return;
-        // stop(242, "mANW->dequeueBuffer");
+    if (rv != NO_ERROR || anb == NULL) {
+        videoSourceError = true;
+
+        if (!stopping) {
+            stop(242, "dequeueBuffer failed");
+        }
+        return;
+
+        //TODO: figure out what this comment really means and fix it :-D
         // this happens when mediarecorder hangs on stop() so fore exit here
         // stopping thread should be interrupted instead of this workaround
-        exit(242);
-    }
-
-    if (anb == NULL) {
-        if (stopping) return;
-        stop(243, "anb == NULL");
+        //exit(242);
     }
 
     sp<GraphicBuffer> buf(new GraphicBuffer(anb, false));
@@ -503,8 +509,10 @@ void CPUMediaRecorderOutput::renderFrame() {
     #endif
 
     if (rv != NO_ERROR) {
-        if (stopping) return;
-        stop(245, "mANW->queueBuffer");
+        videoSourceError = true;
+        if (!stopping) {
+            stop(245, "queueBuffer failed");
+        }
     }
 }
 

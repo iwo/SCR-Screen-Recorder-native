@@ -29,7 +29,7 @@ using namespace android;
 
 class AbstractMediaRecorderOutput : public ScrOutput {
 public:
-    AbstractMediaRecorderOutput() : mr(NULL), mSTC(NULL), mANW(NULL) {}
+    AbstractMediaRecorderOutput() : mr(NULL), mSTC(NULL), mANW(NULL), videoSourceError(false) {}
     virtual ~AbstractMediaRecorderOutput() {}
     virtual void setupOutput();
     virtual void renderFrame() = 0;
@@ -40,6 +40,7 @@ protected:
     sp<MediaRecorder> mr;
     sp<Surface> mSTC;
     sp<ANativeWindow> mANW;
+    bool videoSourceError;
 
     void setupMediaRecorder();
     void checkAudioSource();
