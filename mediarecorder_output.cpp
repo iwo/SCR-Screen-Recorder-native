@@ -596,12 +596,22 @@ void SCRListener::notify(int msg, int ext1, int ext2)
 
     if (msg == MEDIA_RECORDER_EVENT_ERROR) {
         ALOGE("MEDIA_RECORDER_EVENT_ERROR");
-        error = 227;
-        // stop(227, "MEDIA_RECORDER_EVENT_ERROR");
+        if (mrRunning) {
+            error = 227;
+            // stop(227, "MEDIA_RECORDER_EVENT_ERROR");
+        } else {
+            error = 248;
+            // stop(248, "MEDIA_RECORDER_EVENT_ERROR during startup");
+        }
     } else if (msg == MEDIA_RECORDER_TRACK_EVENT_ERROR) {
         ALOGE("MEDIA_RECORDER_TRACK_EVENT_ERROR");
-        error = 228;
-        // stop(228, "MEDIA_RECORDER_TRACK_EVENT_ERROR");
+        if (mrRunning) {
+            error = 228;
+            // stop(228, "MEDIA_RECORDER_TRACK_EVENT_ERROR");
+        } else {
+            error = 249;
+            // stop(249, "MEDIA_RECORDER_TRACK_EVENT_ERROR during startup");
+        }
     } else if (msg == MEDIA_RECORDER_EVENT_INFO && ext1 == MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED) {
         ALOGE("MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED");
         error = 229;
