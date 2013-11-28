@@ -48,8 +48,7 @@ void FFmpegOutput::loadFFmpegComponents() {
 void FFmpegOutput::setupOutputContext() {
     avformat_alloc_output_context2(&oc, NULL, NULL, outputName);
     if (!oc) {
-        ALOGE("Can't alloc output context");
-        stop(234, "");
+        stop(234, "Can't alloc output context");
     }
 }
 
@@ -58,14 +57,12 @@ void FFmpegOutput::setupVideoStream() {
     AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_MPEG4);
 
     if (!codec) {
-        ALOGE("Video codec not found");
-        stop(235, "");
+        stop(235, "Video codec not found");
     }
 
     videoStream = avformat_new_stream(oc, codec);
     if (!videoStream) {
-        ALOGE("Could not allocate video stream");
-        stop(235, "");
+        stop(234, "Could not allocate video stream");
     }
 
     AVCodecContext *c = videoStream->codec;
@@ -94,7 +91,7 @@ void FFmpegOutput::setupVideoStream() {
 
     if (avcodec_open2(c, codec, NULL) < 0) {
         ALOGE("Could not open video codec");
-        stop(235, "");
+        stop(235, "Could not open video codec");
     }
 }
 
@@ -109,8 +106,7 @@ AVFrame *FFmpegOutput::createFrame() {
     AVCodecContext *c = videoStream->codec;
     AVFrame * frame = avcodec_alloc_frame();
     if (!frame) {
-        ALOGE("Could not allocate video frame");
-        stop(235, "");
+        stop(234, "Could not allocate video frame");
     }
     frame->format = c->pix_fmt;
     frame->width  = c->width;
@@ -118,8 +114,7 @@ AVFrame *FFmpegOutput::createFrame() {
 
     ret = av_image_alloc(frame->data, frame->linesize, c->width, c->height, c->pix_fmt, 32);
     if (ret < 0) {
-        ALOGE("Could not allocate raw picture buffer");
-        stop(235, "");
+        stop(234, "Could not allocate raw picture buffer");
     }
     memset(frame->data[1], 128, c->height / 2 * frame->linesize[1]);
     memset(frame->data[2], 128, c->height / 2 * frame->linesize[2]);
@@ -131,14 +126,12 @@ void FFmpegOutput::setupAudioOutput() {
 
     AVCodec *audioCodec = avcodec_find_encoder(AV_CODEC_ID_AAC);
     if (!audioCodec) {
-        ALOGE("AAC Codec not found");
-        stop(236, "");
+        stop(235, "AAC Codec not found");
     }
 
     audioStream = avformat_new_stream(oc, audioCodec);
     if (!audioStream) {
-        ALOGE("Could not allocate audio stream");
-        stop(236, "");
+        stop(236, "Could not allocate audio stream");
     }
 
     AVCodecContext *c = audioStream->codec;
@@ -155,8 +148,7 @@ void FFmpegOutput::setupAudioOutput() {
     /* open it */
     ret = avcodec_open2(c, audioCodec, NULL);
     if (ret < 0) {
-        ALOGE("Could not open audio codec");
-        stop(236, "");
+        stop(235, "Could not open audio codec");
     }
     audioFrameSize = c->frame_size;
 
@@ -164,8 +156,7 @@ void FFmpegOutput::setupAudioOutput() {
                         av_get_bytes_per_sample(c->sample_fmt) *
                         c->channels);
     if (!outSamples) {
-        ALOGE("Could not allocate audio samples buffer");
-        stop(236, "");
+        stop(236, "Could not allocate audio samples buffer");
     }
 
     audioStream->time_base= (AVRational){1,audioSamplingRate};
@@ -176,14 +167,13 @@ void FFmpegOutput::setupOutputFile() {
     int ret;
     ret = avio_open(&oc->pb, outputName, AVIO_FLAG_WRITE);
     if (ret < 0) {
-        stop(201, "");
+        stop(201, "Could not open the output file");
     }
 
     /* Write the stream header, if any. */
     ret = avformat_write_header(oc, NULL);
     if (ret < 0) {
-        ALOGE("Error occurred when writing file header");
-        stop(234, "");
+        stop(247, "Error occurred when writing file header");
     }
 }
 
@@ -207,8 +197,7 @@ void FFmpegOutput::startAudioInput() {
     ret = audioRecord->start();
 
     if (ret != OK) {
-        ALOGE("Can't start audio source");
-        stop(237, "");
+        stop(237, "Can't start audio source");
     }
 }
 
@@ -272,8 +261,7 @@ void FFmpegOutput::writeAudioFrame() {
 
     ret = avcodec_encode_audio2(c, &pkt, frame, &pktReceived);
     if (ret < 0) {
-        ALOGE("Error encoding audio frame");
-        stop(238, "");
+        stop(238, "Error encoding audio frame");
     }
 
     if (pktReceived) {
@@ -284,8 +272,7 @@ void FFmpegOutput::writeAudioFrame() {
         ret = av_interleaved_write_frame(oc, &pkt);
         pthread_mutex_unlock(&outputWriteMutex);
         if (ret != 0) {
-            ALOGE("Error while writing audio frame");
-            stop(238, "");
+            stop(246, "Error while writing audio frame");
         }
     }
     avcodec_free_frame(&frame);
@@ -344,8 +331,7 @@ void FFmpegOutput::encodeAndSaveVideoFrame(AVFrame *frame) {
     /* encode the image */
     ret = avcodec_encode_video2(videoStream->codec, &pkt, frame, &pktReceived);
     if (ret < 0) {
-        ALOGE("Error encoding frame");
-        stop(239, "");
+        stop(239, "Error encoding video frame");
     }
 
     if (pktReceived) {
@@ -361,8 +347,7 @@ void FFmpegOutput::encodeAndSaveVideoFrame(AVFrame *frame) {
         ret = av_interleaved_write_frame(oc, &pkt);
         pthread_mutex_unlock(&outputWriteMutex);
         if (ret != 0) {
-            ALOGE("Error while writing video frame");
-            stop(239, "");
+            stop(240, "Error while writing video frame");
         }
     }
     av_free_packet(&pkt);

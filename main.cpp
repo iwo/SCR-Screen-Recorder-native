@@ -108,6 +108,7 @@ void getOutputName() {
     if (fgets(outputName, 512, stdin) == NULL) {
         ALOGV("cancelled");
         exit(200);
+        // stop(200, "cancelled");
     }
     trim(outputName);
 }
@@ -252,6 +253,7 @@ void interruptCommandThread() {
 void sigpipeHandler(int param) {
     ALOGI("SIGPIPE received");
     exit(222);
+    // stop(222, "killed, SIGPIPE received");
 }
 
 void sigusr1Handler(int param) {

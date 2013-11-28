@@ -597,15 +597,19 @@ void SCRListener::notify(int msg, int ext1, int ext2)
     if (msg == MEDIA_RECORDER_EVENT_ERROR) {
         ALOGE("MEDIA_RECORDER_EVENT_ERROR");
         error = 227;
+        // stop(227, "MEDIA_RECORDER_EVENT_ERROR");
     } else if (msg == MEDIA_RECORDER_TRACK_EVENT_ERROR) {
         ALOGE("MEDIA_RECORDER_TRACK_EVENT_ERROR");
         error = 228;
+        // stop(228, "MEDIA_RECORDER_TRACK_EVENT_ERROR");
     } else if (msg == MEDIA_RECORDER_EVENT_INFO && ext1 == MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED) {
         ALOGE("MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED");
         error = 229;
+        // stop(229, "MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED");
     } else if (msg == MEDIA_RECORDER_EVENT_INFO && ext1 == MEDIA_RECORDER_INFO_MAX_DURATION_REACHED) {
         ALOGE("MEDIA_RECORDER_INFO_MAX_DURATION_REACHED");
         error = 230;
+        // stop(230, "MEDIA_RECORDER_INFO_MAX_DURATION_REACHED");
     }
 
     if (error != 0 && firstError) { //TODO: add proper thread handling instead of this hack
@@ -627,6 +631,7 @@ void GLMediaRecorderOutput::checkGlError(const char* op, bool critical) {
         ALOGI("after %s() glError (0x%x)\n", op, error);
         if (critical) {
             stop(218, op);
+            // stop(218, "glGetError returned error");
         }
     }
 }
