@@ -46,6 +46,7 @@ void AbstractMediaRecorderOutput::setupMediaRecorder() {
     ALOGV("Starting MediaRecorder...");
     if (mr->start() != OK) {
         stop(213, "Error starting MediaRecorder");
+        return;
     } else {
         mrRunning = true;
     }
@@ -202,7 +203,9 @@ void GLMediaRecorderOutput::setupOutput() {
     AbstractMediaRecorderOutput::setupOutput();
     setupEgl();
     setupMediaRecorder();
-    setupGl();
+    if (!stopping) {
+        setupGl();
+    }
 }
 
 
@@ -412,11 +415,13 @@ void GLMediaRecorderOutput::tearDownEgl() {
 void CPUMediaRecorderOutput::setupOutput() {
     AbstractMediaRecorderOutput::setupOutput();
     setupMediaRecorder();
-    #if SCR_SDK_VERSION < 17
-    if (native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU) != NO_ERROR) {
-        stop(224, "native_window_api_connect");
+    if (!stopping) {
+        #if SCR_SDK_VERSION < 17
+        if (native_window_api_connect(mANW.get(), NATIVE_WINDOW_API_CPU) != NO_ERROR) {
+            stop(224, "native_window_api_connect");
+        }
+        #endif
     }
-    #endif
 }
 
 
