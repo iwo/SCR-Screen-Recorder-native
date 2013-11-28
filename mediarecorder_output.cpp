@@ -583,7 +583,9 @@ void CPUMediaRecorderOutput::closeOutput(bool fromMainThread) {
 
 void SCRListener::notify(int msg, int ext1, int ext2)
 {
-    ALOGI("SCRListener %d %d %d, track: %d value: %d\n", msg, ext1, ext2, (ext1 >> 24), (ext1 && 0x0000FFFF));
+    int trackId = (ext1 >> 28);
+    int errorInfo = (ext1 & 0x0000FFFF);
+    ALOGI("SCRListener %d %d %d, track: %d value: %d\n", msg, ext1, ext2, trackId, errorInfo);
 
     int error = 0;
 
