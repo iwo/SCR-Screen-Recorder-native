@@ -10,6 +10,8 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
+#include <media/AudioRecord.h>
+
 #include <media/mediarecorder.h>
 #if SCR_SDK_VERSION >= 16
 #include <gui/Surface.h>
@@ -40,6 +42,7 @@ protected:
     sp<ANativeWindow> mANW;
 
     void setupMediaRecorder();
+    void checkAudioSource();
     void tearDownMediaRecorder(bool async);
     static void* stoppingThreadStart(void* args);
     void stopMediaRecorder();

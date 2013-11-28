@@ -9,8 +9,30 @@ void AbstractMediaRecorderOutput::setupOutput() {
     if (outputFd < 0) {
         stop(201, "Could not open the output file");
     }
+    if (audioSource != SCR_AUDIO_MUTE) {
+        checkAudioSource();
+    }
 }
 
+void AbstractMediaRecorderOutput::checkAudioSource() {
+    ALOGV("Checking if audio source is available");
+    status_t err = OK;
+    int64_t startTime = getTimeMs();
+    sp<AudioRecord> audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT, AUDIO_CHANNEL_IN_MONO);
+
+    err = audioRecord->initCheck();
+    if (err != NO_ERROR) {
+        stop(250, "audioRecord->initCheck() failed");
+    }
+    err = audioRecord->start();
+    if (err != NO_ERROR) {
+        stop(237, "Can't start audio source");
+    } else {
+        audioRecord->stop();
+    }
+    audioRecord.clear();
+    ALOGV("audio check time %lldms", getTimeMs() - startTime);
+}
 
 // Set up the MediaRecorder which runs in the same process as mediaserver
 void AbstractMediaRecorderOutput::setupMediaRecorder() {
