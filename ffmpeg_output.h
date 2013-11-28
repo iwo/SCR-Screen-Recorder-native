@@ -49,7 +49,7 @@ private:
     float *outSamples;
     int64_t sampleCount;
 
-    AudioRecord *audioRecord;
+    sp<AudioRecord> audioRecord;
     int inSamplesSize;
     float *inSamples;
     int inSamplesStart, inSamplesEnd;

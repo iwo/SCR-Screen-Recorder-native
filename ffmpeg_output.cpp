@@ -178,7 +178,7 @@ void FFmpegOutput::setupOutputFile() {
 }
 
 void FFmpegOutput::startAudioInput() {
-    int ret;
+    int err;
 
     inSamplesSize = audioSamplingRate; // buffer up to one second of input audio data
     inSamples = new float[inSamplesSize];
@@ -194,9 +194,13 @@ void FFmpegOutput::startAudioInput() {
                         &staticAudioRecordCallback,
                         this);
 
-    ret = audioRecord->start();
-
-    if (ret != OK) {
+    err = audioRecord->initCheck();
+    if (err != NO_ERROR) {
+        stop(250, "audioRecord->initCheck() failed");
+        return;
+    }
+    err = audioRecord->start();
+    if (err != NO_ERROR) {
         stop(237, "Can't start audio source");
     }
 }
@@ -383,6 +387,7 @@ void FFmpegOutput::closeOutput(bool fromMainThread) {
 
     if (audioSource != SCR_AUDIO_MUTE) {
         audioRecord->stop();
+        audioRecord.clear();
     }
 }
 
