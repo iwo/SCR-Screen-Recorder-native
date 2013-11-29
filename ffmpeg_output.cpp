@@ -368,12 +368,15 @@ void FFmpegOutput::renderFrame() {
 }
 
 void FFmpegOutput::closeOutput(bool fromMainThread) {
+    ALOGV("Closing FFmpeg output %d", fromMainThread);
     mrRunning = false;
     pthread_mutex_unlock(&frameReadyMutex);
     pthread_join(encodingThread, NULL);
 
+    ALOGV("Writing trailer");
     av_write_trailer(oc);
 
+    ALOGV("streams and codecs cleanup");
     avcodec_close(videoStream->codec);
     av_freep(&frames[0]->data[0]);
     avcodec_free_frame(&frames[0]);
@@ -386,9 +389,11 @@ void FFmpegOutput::closeOutput(bool fromMainThread) {
     avformat_free_context(oc);
 
     if (audioSource != SCR_AUDIO_MUTE) {
+        ALOGV("Stopping audio");
         audioRecord->stop();
         audioRecord.clear();
     }
+    ALOGV("FFmpeg output closed");
 }
 
 void FFmpegOutput::copyRotateYUVBuf(uint8_t** yuvPixels, uint8_t* screen, int* stride) {

@@ -105,6 +105,7 @@ void AbstractMediaRecorderOutput::closeOutput(bool fromMainThread) {
          close(outputFd);
          outputFd = -1;
     }
+    ALOGV("Abstract output closed");
 }
 
 
@@ -131,7 +132,9 @@ void AbstractMediaRecorderOutput::stopMediaRecorderAsync() {
     while (mrRunning && !videoSourceError) {
         renderFrame();
     }
+    ALOGV("Waiting for stopping thread");
     pthread_join(stoppingThread, NULL);
+    ALOGV("Stopping thread finished");
 }
 
 
@@ -416,6 +419,7 @@ void GLMediaRecorderOutput::renderFrame() {
 void GLMediaRecorderOutput::closeOutput(bool fromMainThread) {
     AbstractMediaRecorderOutput::closeOutput(fromMainThread);
     tearDownEgl();
+    ALOGV("Output closed");
 }
 
 
@@ -448,6 +452,7 @@ void CPUMediaRecorderOutput::setupOutput() {
         }
         #endif
     }
+    ALOGV("Output closed");
 }
 
 

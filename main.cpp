@@ -92,6 +92,7 @@ int main(int argc, char* argv[]) {
     interruptCommandThread();
 
     fixFilePermissions();
+    ALOGV("main thread completed");
     return errorCode;
 }
 
@@ -240,6 +241,7 @@ void* commandThreadStart(void* args) {
     read(fileno(stdin), command, 15);
     finished = true;
     commandThread = mainThread; // reset command thread id to indicate that it's stopped
+    ALOGV("command thread completed");
     return NULL;
 }
 
@@ -296,6 +298,7 @@ void stop(int error, bool fromMainThread, const char* message) {
 
     if (fromMainThread) {
         fixFilePermissions();
+        ALOGV("exiting main thread");
         exit(errorCode);
     }
 }
