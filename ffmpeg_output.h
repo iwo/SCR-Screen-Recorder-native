@@ -22,12 +22,26 @@ using namespace android;
 
 class FFmpegOutput : public ScrOutput {
 public:
-    FFmpegOutput() :
-        startTimeMs(0), sampleCount(0) {
+    FFmpegOutput()
+        : oc(NULL),
+          startTimeMs(0),
+          videoStream(NULL),
+          videoFrame(NULL),
+          audioStream(NULL),
+          audioFrameSize(0),
+          outSamples(NULL),
+          sampleCount(0),
+          audioRecord(NULL),
+          inSamplesSize(0),
+          inSamples(NULL),
+          inSamplesStart(0),
+          inSamplesEnd(0) {
         pthread_mutex_init(&frameReadyMutex, NULL);
         pthread_mutex_init(&frameEncMutex, NULL);
         pthread_mutex_init(&outputWriteMutex, NULL);
         pthread_mutex_init(&inSamplesMutex, NULL);
+        frames[0] = NULL;
+        frames[1] = NULL;
     }
     virtual ~FFmpegOutput() {}
     virtual void setupOutput();
