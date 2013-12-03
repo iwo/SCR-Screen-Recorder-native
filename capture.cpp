@@ -123,7 +123,7 @@ void updateInput() {
             ALOGV("Creating GLConsumer");
         }
         if (ScreenshotClient::capture(display, bufferQueue, reqWidth, reqHeight, 0, -1) != NO_ERROR) {
-            stop(227, "capture failed");
+            stop(217, "capture failed");
         }
         #elif SCR_SDK_VERSION >= 18
         if (glConsumer.get() != NULL) {
@@ -133,7 +133,7 @@ void updateInput() {
         glConsumer->setName(String8("scr_consumer"));
              if (ScreenshotClient::capture(display, glConsumer->getBufferQueue(),
                 reqWidth, reqHeight, 0, -1) != NO_ERROR) {
-            stop(227, "capture failed");
+            stop(217, "capture failed");
         }
         #endif // SCR_SDK_VERSION
     } else {
