@@ -1,6 +1,8 @@
 LOCAL_PATH := $(call my-dir)
 
-SCR_FFMPEG := y
+ifeq ($(TARGET_ARCH), arm)
+    SCR_FFMPEG := y
+endif
 
 SCR_SHARED_LIBRARIES := \
     libcutils \
