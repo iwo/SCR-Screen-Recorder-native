@@ -18,7 +18,13 @@ void AbstractMediaRecorderOutput::checkAudioSource() {
     ALOGV("Checking if audio source is available");
     status_t err = OK;
     int64_t startTime = getTimeMs();
-    sp<AudioRecord> audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT, AUDIO_CHANNEL_IN_MONO);
+    #if SCR_SDK_VERSION >= 16
+    sp<AudioRecord> audioRecord;
+    #else
+    AudioRecord *audioRecord;
+    #endif
+
+    audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT, AUDIO_CHANNEL_IN_MONO);
 
     err = audioRecord->initCheck();
     if (err != NO_ERROR) {
@@ -30,7 +36,9 @@ void AbstractMediaRecorderOutput::checkAudioSource() {
     } else {
         audioRecord->stop();
     }
+    #if SCR_SDK_VERSION >= 16
     audioRecord.clear();
+    #endif
     ALOGV("audio check time %lldms", getTimeMs() - startTime);
 }
 

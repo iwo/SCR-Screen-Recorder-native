@@ -391,7 +391,9 @@ void FFmpegOutput::closeOutput(bool fromMainThread) {
     if (audioSource != SCR_AUDIO_MUTE) {
         ALOGV("Stopping audio");
         audioRecord->stop();
-        audioRecord.clear();
+        #if SCR_SDK_VERSION >= 16
+            audioRecord.clear();
+        #endif
     }
     ALOGV("FFmpeg output closed");
 }

@@ -63,7 +63,11 @@ private:
     float *outSamples;
     int64_t sampleCount;
 
+    #if SCR_SDK_VERSION >= 16
     sp<AudioRecord> audioRecord;
+    #else
+    AudioRecord *audioRecord;
+    #endif
     int inSamplesSize;
     float *inSamples;
     int inSamplesStart, inSamplesEnd;
