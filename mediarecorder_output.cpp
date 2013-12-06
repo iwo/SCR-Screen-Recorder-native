@@ -18,13 +18,7 @@ void AbstractMediaRecorderOutput::checkAudioSource() {
     ALOGV("Checking if audio source is available");
     status_t err = OK;
     int64_t startTime = getTimeMs();
-    #if SCR_SDK_VERSION >= 16
-    sp<AudioRecord> audioRecord;
-    #else
-    AudioRecord *audioRecord;
-    #endif
-
-    audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT, AUDIO_CHANNEL_IN_MONO);
+    AudioRecord *audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT, AUDIO_CHANNEL_IN_MONO);
 
     err = audioRecord->initCheck();
     if (err != NO_ERROR) {
@@ -35,10 +29,8 @@ void AbstractMediaRecorderOutput::checkAudioSource() {
         stop(237, "Can't start audio source");
     } else {
         audioRecord->stop();
+        // don't free audioRecord as the destructor causes SIGSEGV on many devices
     }
-    #if SCR_SDK_VERSION >= 16
-    audioRecord.clear();
-    #endif
     ALOGV("audio check time %lldms", getTimeMs() - startTime);
 }
 

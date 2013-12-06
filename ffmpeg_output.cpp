@@ -391,9 +391,7 @@ void FFmpegOutput::closeOutput(bool fromMainThread) {
     if (audioSource != SCR_AUDIO_MUTE) {
         ALOGV("Stopping audio");
         audioRecord->stop();
-        #if SCR_SDK_VERSION >= 16
-            audioRecord.clear();
-        #endif
+        // don't free audioRecord as the destructor causes SIGSEGV on many devices
     }
     ALOGV("FFmpeg output closed");
 }
