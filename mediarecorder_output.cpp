@@ -28,7 +28,8 @@ void AbstractMediaRecorderOutput::checkAudioSource(audio_source_t source) {
     if (err != NO_ERROR) {
         ALOGE("Error when checking audio source state %#x (%d)", err, err);
     } else if (active) {
-        stop(251, "AUDIO_SOURCE_MIC already active");
+        ALOGE("audio source already active: %d", source);
+        stop(251, "audio source already active");
     }
     ALOGV("audio check time %lldms", getTimeMs() - startTime);
     #endif
