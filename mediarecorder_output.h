@@ -43,7 +43,7 @@ protected:
     bool videoSourceError;
 
     void setupMediaRecorder();
-    void checkAudioSource();
+    void checkAudioSource(audio_source_t source);
     void tearDownMediaRecorder(bool async);
     static void* stoppingThreadStart(void* args);
     void stopMediaRecorder();

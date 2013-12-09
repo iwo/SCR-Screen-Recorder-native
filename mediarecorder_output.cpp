@@ -10,28 +10,28 @@ void AbstractMediaRecorderOutput::setupOutput() {
         stop(201, "Could not open the output file");
     }
     if (audioSource != SCR_AUDIO_MUTE) {
-        checkAudioSource();
+        checkAudioSource(AUDIO_SOURCE_MIC);
+        checkAudioSource(AUDIO_SOURCE_VOICE_COMMUNICATION);
+        checkAudioSource(AUDIO_SOURCE_CAMCORDER);
     }
 }
 
-void AbstractMediaRecorderOutput::checkAudioSource() {
+void AbstractMediaRecorderOutput::checkAudioSource(audio_source_t source) {
+    // Checking if source is active by starting AudioRecord turned out to cause 213 errors on some systems using ALSA
+    // so for now check only on 4.2+ using AudioSystem::isSourceActive
+    #if SCR_SDK_VERSION >= 17
     ALOGV("Checking if audio source is available");
     status_t err = OK;
     int64_t startTime = getTimeMs();
-    AudioRecord *audioRecord = new AudioRecord(AUDIO_SOURCE_MIC, audioSamplingRate, AUDIO_FORMAT_PCM_16_BIT, AUDIO_CHANNEL_IN_MONO);
-
-    err = audioRecord->initCheck();
+    bool active = false;
+    err = AudioSystem::isSourceActive(source, &active);
     if (err != NO_ERROR) {
-        stop(250, "audioRecord->initCheck() failed");
-    }
-    err = audioRecord->start();
-    if (err != NO_ERROR) {
-        stop(237, "Can't start audio source");
-    } else {
-        audioRecord->stop();
-        // don't free audioRecord as the destructor causes SIGSEGV on many devices
+        ALOGE("Error when checking audio source state %#x (%d)", err, err);
+    } else if (active) {
+        stop(251, "AUDIO_SOURCE_MIC already active");
     }
     ALOGV("audio check time %lldms", getTimeMs() - startTime);
+    #endif
 }
 
 // Set up the MediaRecorder which runs in the same process as mediaserver
