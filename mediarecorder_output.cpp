@@ -80,6 +80,11 @@ void AbstractMediaRecorderOutput::setupMediaRecorder() {
     #else
     sp<ISurfaceTexture> iST = mr->querySurfaceMediaSourceFromMediaServer();
     #endif // SCR_SDK_VERSION
+    if (iST.get() == NULL) {
+        mrRunning = false;
+        stop(198, "error starting MediaRecorder");
+        return;
+    }
     mSTC = new Surface(iST);
     mANW = mSTC;
 
