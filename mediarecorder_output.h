@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <cutils/log.h>
+#include <sys/statfs.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
@@ -24,6 +25,9 @@
 #else
 #include <gui/SurfaceTextureClient.h>
 #endif
+
+#define MSDOS_FS_LIMIT 4294967295ull
+#define USE_64BIT_OFFSET_LIMIT 2147483647ull
 
 using namespace android;
 
@@ -44,10 +48,12 @@ protected:
 
     void setupMediaRecorder();
     void checkAudioSource(audio_source_t source);
+    void setFileSizeLimit();
     void tearDownMediaRecorder(bool async);
     static void* stoppingThreadStart(void* args);
     void stopMediaRecorder();
     void stopMediaRecorderAsync();
+    uint64_t getAvailableSpace();
 };
 
 

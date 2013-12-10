@@ -64,6 +64,7 @@ void AbstractMediaRecorderOutput::setupMediaRecorder() {
     #ifdef SCR_FREE
     mr->setParameters(String8::format("max-duration=200000"));
     #endif
+    setFileSizeLimit();
     mr->prepare();
 
     ALOGV("Starting MediaRecorder...");
@@ -103,6 +104,24 @@ void AbstractMediaRecorderOutput::setupMediaRecorder() {
     }
 }
 
+void AbstractMediaRecorderOutput::setFileSizeLimit() {
+    uint64_t space = getAvailableSpace();
+    if (space > 0) {
+        if (space > 100*1024*1024) {
+            space -= 50*1024*1024;
+        } else if (space > 1*1024*1024) {
+            space -= 1*1024*1024;
+            ALOGW("Low storage space %llukB", space / 1024);
+        } else {
+            ALOGE("Low storage space %llukB or space measurement failed", space / 1024);
+        }
+        ALOGV("Setting file size limit to %lluMB", space / (1024 * 1024));
+        if (space > USE_64BIT_OFFSET_LIMIT) {
+            mr->setParameters(String8("param-use-64bit-offset=1"));
+        }
+        mr->setParameters(String8::format("max-filesize=%llu", space));
+    }
+}
 
 void AbstractMediaRecorderOutput::closeOutput(bool fromMainThread) {
     tearDownMediaRecorder(fromMainThread);
@@ -159,6 +178,21 @@ void* AbstractMediaRecorderOutput::stoppingThreadStart(void* args) {
     AbstractMediaRecorderOutput* output = static_cast<AbstractMediaRecorderOutput*>(args);
     output->stopMediaRecorder();
     return NULL;
+}
+
+uint64_t AbstractMediaRecorderOutput::getAvailableSpace() {
+    struct statfs stats;
+    int err = statfs(outputName, &stats);
+    if (err != NO_ERROR) {
+        ALOGW("Can't retrieve free storage space %s %d", strerror(errno), err);
+        return 0;
+    }
+    uint64_t space = stats.f_bavail * uint64_t(stats.f_bsize);
+    if (stats.f_type == MSDOS_SUPER_MAGIC && space > MSDOS_FS_LIMIT) {
+        ALOGV("File size limit restricted to 4GiB because of filesystem limitations");
+        return MSDOS_FS_LIMIT;
+    }
+    return space;
 }
 
 
