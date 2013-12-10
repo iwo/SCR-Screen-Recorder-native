@@ -149,6 +149,8 @@ void AbstractMediaRecorderOutput::tearDownMediaRecorder(bool async) {
 
 
 void AbstractMediaRecorderOutput::stopMediaRecorderAsync() {
+    bool waitForStoppingThread = !videoSourceError;
+
     // MediaRecorder needs to be stopped from separate thread as couple frames may need to be rendered before mr->stop() returns.
     if (pthread_create(&stoppingThread, NULL, &AbstractMediaRecorderOutput::stoppingThreadStart, (void *)this) != 0){
         ALOGE("Can't create stopping thread, stopping synchronously");
@@ -157,9 +159,13 @@ void AbstractMediaRecorderOutput::stopMediaRecorderAsync() {
     while (mrRunning && !videoSourceError) {
         renderFrame();
     }
-    ALOGV("Waiting for stopping thread");
-    pthread_join(stoppingThread, NULL);
-    ALOGV("Stopping thread finished");
+    if (waitForStoppingThread) {
+        ALOGV("Waiting for stopping thread");
+        pthread_join(stoppingThread, NULL);
+        ALOGV("Stopping thread finished");
+    } else {
+        ALOGW("Not waiting for stopping thread to finish");
+    }
 }
 
 
@@ -530,11 +536,6 @@ void CPUMediaRecorderOutput::renderFrame() {
             stop(242, "dequeueBuffer failed");
         }
         return;
-
-        //TODO: figure out what this comment really means and fix it :-D
-        // this happens when mediarecorder hangs on stop() so fore exit here
-        // stopping thread should be interrupted instead of this workaround
-        //exit(242);
     }
 
     sp<GraphicBuffer> buf(new GraphicBuffer(anb, false));
