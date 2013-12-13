@@ -584,8 +584,8 @@ void CPUMediaRecorderOutput::fillBuffer(sp<GraphicBuffer> buf) {
         if (useYUV_P || useYUV_SP) {
             stop(232, "not implemented");
         } else {
-            if (videoWidth == stride && !useBGRA && paddingWidth == 0 && paddingHeight == 0) {
-                memcpy(bufPixels, screen, videoWidth * videoHeight * 4);
+            if (stride == inputStride && !useBGRA && paddingWidth == 0 && paddingHeight == 0) {
+                memcpy(bufPixels, screen, stride * videoHeight * 4);
             } else {
                 copyBuf(bufPixels, screen, stride);
             }
