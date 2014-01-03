@@ -43,7 +43,7 @@ int fbFd = -1;
 struct fb_var_screeninfo fbInfo;
 void const* fbMapBase = MAP_FAILED;
 #else
-ScreenshotClient screenshot;
+ScreenshotClient *screenshot;
 #if SCR_SDK_VERSION >= 17
 sp<IBinder> display;
 #endif // SCR_SDK_VERSION 17

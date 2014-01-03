@@ -35,34 +35,35 @@ void setupInput() {
     }
     inputBase = (void const *)((char const *)fbMapBase + offset);
 #else
+    screenshot = new ScreenshotClient();
     #if SCR_SDK_VERSION >= 17
     display = SurfaceComposerClient::getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain);
     if (display == NULL) {
         stop(205, "Can't access display");
     }
-    if (screenshot.update(display) != NO_ERROR) {
-        stop(217, "screenshot.update() failed");
+    if (screenshot->update(display) != NO_ERROR) {
+        stop(217, "screenshot->update() failed");
     }
     #else
-    if (screenshot.update() != NO_ERROR) {
-        stop(217, "screenshot.update() failed");
+    if (screenshot->update() != NO_ERROR) {
+        stop(217, "screenshot->update() failed");
     }
     #endif // SCR_SDK_VERSION
 
-    if ((screenshot.getWidth() < screenshot.getHeight()) != (reqWidth < reqHeight)) {
+    if ((screenshot->getWidth() < screenshot->getHeight()) != (reqWidth < reqHeight)) {
         ALOGI("swapping dimensions");
         int tmp = reqWidth;
         reqWidth = reqHeight;
         reqHeight = tmp;
     }
     screenshotUpdate(reqWidth, reqHeight);
-    inputWidth = screenshot.getWidth();
-    inputHeight = screenshot.getHeight();
-    inputStride = screenshot.getStride();
+    inputWidth = screenshot->getWidth();
+    inputHeight = screenshot->getHeight();
+    inputStride = screenshot->getStride();
     if (useOes) {
-        screenshot.release();
+        screenshot->release();
     }
-    ALOGV("Screenshot width: %d, height: %d, stride: %d, format %d, size: %d", inputWidth, inputHeight, inputStride, screenshot.getFormat(), screenshot.getSize());
+    ALOGV("Screenshot width: %d, height: %d, stride: %d, format %d, size: %d", inputWidth, inputHeight, inputStride, screenshot->getFormat(), screenshot->getSize());
 
 #endif // SCR_FB
 
@@ -139,7 +140,7 @@ void updateInput() {
     } else {
         inputBase = NULL;
         if (screenshotUpdate(reqWidth, reqHeight) == NO_ERROR) {
-            inputBase = screenshot.getPixels();
+            inputBase = screenshot->getPixels();
         }
     }
 #endif
@@ -150,13 +151,13 @@ status_t screenshotUpdate(int reqWidth, int reqHeight) {
 
     #ifndef SCR_FB
     #if SCR_SDK_VERSION >= 18
-        screenshot.release();
+        screenshot->release();
     #endif
 
     #if SCR_SDK_VERSION >= 17
-    err = screenshot.update(display, reqWidth, reqHeight);
+    err = screenshot->update(display, reqWidth, reqHeight);
     #else
-    err = screenshot.update(reqWidth, reqHeight);
+    err = screenshot->update(reqWidth, reqHeight);
     #endif // SCR_SDK_VERSION
 
     if (err != NO_ERROR) {
@@ -172,6 +173,8 @@ void closeInput() {
         close(fbFd);
     fbFd = -1;
     }
+#else
+    delete screenshot;
 #endif // SCR_FB
 }
 
