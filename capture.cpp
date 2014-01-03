@@ -174,7 +174,30 @@ void closeInput() {
     fbFd = -1;
     }
 #else
+    ALOGV("deleting screenshot");
     delete screenshot;
+    ALOGV("deleting screenshot done");
+    #if SCR_SDK_VERSION >= 17
+    if (display.get() != NULL) {
+        ALOGV("clearing display");
+        display.clear();
+        ALOGV("clearing display done");
+    }
+    #endif // SCR_SDK_VERSION 17
+    #if SCR_SDK_VERSION >= 18
+    if (glConsumer.get() != NULL) {
+        ALOGV("clearing consumer");
+        glConsumer.clear();
+        ALOGV("clearing consumer done");
+    }
+    #endif // SCR_SDK_VERSION 18
+    #if SCR_SDK_VERSION >= 19
+    if (bufferQueue.get() != NULL) {
+        ALOGV("clearing bq");
+        bufferQueue.clear();
+        ALOGV("clearing bq done");
+    }
+    #endif // SCR_SDK_VERSION 19
 #endif // SCR_FB
 }
 
