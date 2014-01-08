@@ -269,8 +269,8 @@ void stop(int error, const char* message) {
 
 void stop(int error, bool fromMainThread, const char* message) {
 
-    fprintf(stderr, "%d - stop requested from thread %s\n", error, getThreadName());
-    fflush(stderr);
+    //fprintf(stderr, "%d - stop requested from thread %s\n", error, getThreadName());
+    //fflush(stderr);
 
     if (error == 0) {
         ALOGV("%s - stopping\n", message);
