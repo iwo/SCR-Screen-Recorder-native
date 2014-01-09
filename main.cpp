@@ -106,7 +106,10 @@ int main(int argc, char* argv[]) {
     fflush(stdout);
 
     if (testMode) {
-        fprintf(stderr, "%ld, %dx%d, %s, %s, %s, %f\n", (long int)time(NULL), reqWidth, reqHeight, argv[3], argv[4], argv[5], fps);
+        if (errorCode != 0) {
+            fps = 0.0f;
+        }
+        fprintf(stderr, "%ld, %4sx%s, %6s, %s, %2s, %4.1f\n", (long int)time(NULL), argv[1], argv[2], argv[3], argv[4], argv[5], fps);
         fflush(stderr);
     }
 
