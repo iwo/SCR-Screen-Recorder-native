@@ -56,6 +56,7 @@ int frameCount = 0;
 
 // private
 ScrOutput *output;
+bool testMode = false;
 
 // pthreads
 pthread_t mainThread;
@@ -78,6 +79,7 @@ void getAudioSamplingRate();
 void getVideoEncoder();
 void getAllowVerticalFrames();
 void trim(char* str);
+void initializeTransformation(char* transform);
 void closeOutput();
 void closeInput();
 void adjustRotation();

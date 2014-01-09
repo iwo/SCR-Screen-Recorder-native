@@ -15,6 +15,24 @@ int main(int argc, char* argv[]) {
     mainThread = pthread_self();
     commandThread = mainThread; // will be changed when command thread is started
 
+    if (argc == 6) {
+        testMode = true;
+
+        reqWidth = atoi(argv[1]);
+        reqHeight = atoi(argv[2]);
+        initializeTransformation(argv[3]);
+        allowVerticalFrames = (argv[4][0] == 'V');
+        videoEncoder = atoi(argv[5]);
+        sprintf(outputName, "/sdcard/scr_tests/test_%dx%d_%s_%s_%s.mp4", reqWidth, reqHeight, argv[3], argv[4], argv[5]);
+
+        frameRate = 30;
+        restrictFrameRate = false;
+        rotation = 0;
+        audioSource = AUDIO_SOURCE_MIC;
+        videoBitrate = 10000000;
+        audioSamplingRate = 16000;
+    } else {
+
     getOutputName();
     if (outputName[0] != '/') {
         return processCommand();
@@ -31,6 +49,8 @@ int main(int argc, char* argv[]) {
     getAudioSamplingRate();
     getVideoEncoder();
     getAllowVerticalFrames();
+
+    }
 
     ALOGI("SETTINGS rotation: %d, audioSource: %c, resolution: %d x %d, padding: %d x %d, frameRate: %d, mode: %s, colorFix: %d, videoEncoder: %d, verticalFrames: %d",
           rotation, audioSource, reqWidth, reqHeight, paddingWidth, paddingHeight, frameRate, useGl ? "GPU" : "CPU", useBGRA, videoEncoder, allowVerticalFrames);
@@ -84,6 +104,11 @@ int main(int argc, char* argv[]) {
     }
     printf("fps %f\n", fps);
     fflush(stdout);
+
+    if (testMode) {
+        fprintf(stderr, "%ld, %dx%d, %s, %s, %s, %f\n", (long int)time(NULL), reqWidth, reqHeight, argv[3], argv[4], argv[5], fps);
+        fflush(stderr);
+    }
 
     if (!stopping) {
         stop(0, "finished");
@@ -147,19 +172,23 @@ void getFrameRate() {
 void getUseGl() {
     char mode[8];
     if (fgets(mode, 8, stdin) != NULL) {
-        if (mode[0] == 'C') { //CPU
-            useGl = false;
-        } else if (mode[0] == 'O') { //OES
-            #if SCR_SDK_VERSION >= 18
-            useOes = true;
-            #endif
-        } else if (mode[0] == 'S') { // YUV_SP
-            useGl = false;
-            useYUV_SP = true;
-        } else if (mode[0] == 'P') { // YUV_P
-            useGl = false;
-            useYUV_P = true;
-        }
+        initializeTransformation(mode);
+    }
+}
+
+void initializeTransformation(char *transformation) {
+    if (transformation[0] == 'C') { //CPU
+        useGl = false;
+    } else if (transformation[0] == 'O') { //OES
+        #if SCR_SDK_VERSION >= 18
+        useOes = true;
+        #endif
+    } else if (transformation[0] == 'S') { // YUV_SP
+        useGl = false;
+        useYUV_SP = true;
+    } else if (transformation[0] == 'P') { // YUV_P
+        useGl = false;
+        useYUV_P = true;
     }
 }
 
@@ -236,9 +265,13 @@ void listenForCommand() {
 }
 
 void* commandThreadStart(void* args) {
-    char command [16];
-    memset(command,'\0', 16);
-    read(fileno(stdin), command, 15);
+    if (testMode) {
+        sleep(10);
+    } else {
+        char command [16];
+        memset(command,'\0', 16);
+        read(fileno(stdin), command, 15);
+    }
     finished = true;
     commandThread = mainThread; // reset command thread id to indicate that it's stopped
     ALOGV("command thread completed");
