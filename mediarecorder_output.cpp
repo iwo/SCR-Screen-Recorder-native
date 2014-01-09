@@ -582,7 +582,7 @@ void CPUMediaRecorderOutput::fillBuffer(sp<GraphicBuffer> buf) {
         }
     } else {
         if (useYUV_P || useYUV_SP) {
-            stop(232, "not implemented");
+            copyYUVBuf((uint8_t*) bufPixels, (uint8_t*) screen, stride);
         } else {
             if (stride == inputStride && !useBGRA && paddingWidth == 0 && paddingHeight == 0) {
                 memcpy(bufPixels, screen, stride * videoHeight * 4);
@@ -639,6 +639,38 @@ void CPUMediaRecorderOutput::copyRotateYUVBuf(uint8_t* yuvPixels, uint8_t* scree
             uint16_t V = ( ( 112 * r -  94 * g -  18 * b + 128) >> 8) + 128;
             yuvPixels[y * stride + x] = Y;
             if (y % 2 == 0 && x % 2 == 0) {
+                if (useYUV_P) {
+                    yuvPixels[videoHeight * stride + y * stride / 4 + x / 2 ] = U;
+                    yuvPixels[videoHeight * stride + videoHeight * stride / 4 + y * stride / 4 + x / 2 ] = V;
+                } else { // useYUV_SP
+                    yuvPixels[videoHeight * stride + y * stride / 2 + x ] = U;
+                    yuvPixels[videoHeight * stride + y * stride / 2 + x + 1] = V;
+                }
+            }
+        }
+    }
+}
+
+void CPUMediaRecorderOutput::copyYUVBuf(uint8_t* yuvPixels, uint8_t* screen, int stride) {
+    for (int y = paddingHeight; y < videoHeight - paddingHeight; y++) {
+        for (int x = paddingWidth; x < videoWidth - paddingWidth; x++) {
+
+            int idx = ((y - paddingHeight) * inputStride + x - paddingWidth) * 4;
+            uint8_t r,g,b;
+            if (useBGRA) {
+                b = screen[idx];
+                g = screen[idx + 1];
+                r = screen[idx + 2];
+            } else {
+                r = screen[idx];
+                g = screen[idx + 1];
+                b = screen[idx + 2];
+            }
+            uint16_t Y = ( (  66 * r + 129 * g +  25 * b + 128) >> 8) +  16;
+            yuvPixels[y * stride + x] = Y;
+            if (y % 2 == 0 && x % 2 == 0) {
+                uint16_t U = ( ( -38 * r -  74 * g + 112 * b + 128) >> 8) + 128;
+                uint16_t V = ( ( 112 * r -  94 * g -  18 * b + 128) >> 8) + 128;
                 if (useYUV_P) {
                     yuvPixels[videoHeight * stride + y * stride / 4 + x / 2 ] = U;
                     yuvPixels[videoHeight * stride + videoHeight * stride / 4 + y * stride / 4 + x / 2 ] = V;

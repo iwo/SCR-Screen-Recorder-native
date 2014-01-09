@@ -121,6 +121,7 @@ private:
     void fillBuffer(sp<GraphicBuffer> buf);
     void copyRotateYUVBuf(uint8_t* yuvPixels, uint8_t* screen, int stride);
     void copyRotateBuf(uint32_t* bufPixels, uint32_t* screen, int stride);
+    void copyYUVBuf(uint8_t* yuvPixels, uint8_t* screen, int stride);
     void copyBuf(uint32_t* bufPixels, uint32_t* screen, int stride);
     inline uint32_t convertColor(uint32_t color);
 };
