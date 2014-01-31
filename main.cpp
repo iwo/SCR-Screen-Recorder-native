@@ -65,6 +65,9 @@ int main(int argc, char* argv[]) {
     setupInput();
     adjustRotation();
 
+    printf("rotateView %d verticalInput %d rotation %d\n", rotateView, inputHeight > inputWidth ? 1 : 0, rotation);
+    fflush(stdout);
+
     if (videoEncoder >= 0) {
         if (useGl) {
             output = new GLMediaRecorderOutput();
@@ -102,7 +105,7 @@ int main(int argc, char* argv[]) {
     if (recordingTime > 0) {
         fps = 1000.0f * frameCount / recordingTime;
     }
-    printf("fps %f rotateView %d verticalInput %d\n", fps, rotateView, inputHeight > inputWidth ? 1 : 0);
+    printf("fps %f\n", fps);
     fflush(stdout);
 
     if (testMode) {
