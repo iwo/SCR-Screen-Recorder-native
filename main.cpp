@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
     if (recordingTime > 0) {
         fps = 1000.0f * frameCount / recordingTime;
     }
-    printf("fps %f\n", fps);
+    printf("fps %f rotateView %d verticalInput %d\n", fps, rotateView, inputHeight > inputWidth ? 1 : 0);
     fflush(stdout);
 
     if (testMode) {
