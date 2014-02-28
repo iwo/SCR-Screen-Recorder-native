@@ -329,3 +329,70 @@ int uninstallAudioHAL() {
     ALOGV("Uninstalled!\n");
     return 0;
 }
+
+int mountAudioHAL() {
+    ALOGV("Soft-Installing SCR audio HAL\n");
+    char baseDir [1024];
+    char modulesPath [1024];
+    char policyPath [1024];
+
+    if (fgets(baseDir, 1023, stdin) == NULL) {
+        ALOGE("No base directory specified");
+        return 173;
+    }
+    trim(baseDir);
+
+    sprintf(modulesPath, "%.950s/hw", baseDir);
+    sprintf(policyPath, "%.950s/audio_policy.conf", baseDir);
+
+    ALOGV("Linking modules dir");
+    if (mount(modulesPath, "/system/lib/hw", NULL, MS_BIND, 0)) {
+        ALOGE("Error linking modules directory. error: %s", strerror(errno));
+        return 174;
+    }
+
+    if (fileExists(policyPath)) {
+        ALOGV("Linking audio policy file\n");
+        if (fileExists("/vendor/etc/audio_policy.conf")) {
+            if (mount(policyPath, "/vendor/etc/audio_policy.conf", NULL, MS_BIND, 0)) {
+                ALOGE("Error linking policy file. error: %s", strerror(errno));
+                unmountAudioHAL();
+                return 175;
+            }
+        }
+        if (fileExists("/system/etc/audio_policy.conf")) {
+            if (mount(policyPath, "/system/etc/audio_policy.conf", NULL, MS_BIND, 0)) {
+                ALOGE("Error linking policy file. error: %s", strerror(errno));
+                unmountAudioHAL();
+                return 176;
+            }
+        }
+    }
+
+    stopMediaServer();
+    int pid = waitForMediaServerPid();
+
+    if (pid == -1) {
+        ALOGE("Media Server process not showing up!\n");
+        unmountAudioHAL();
+        return 177;
+    }
+
+    ALOGV("Waiting 10s to see if mediaserver process %d won't die\n", pid);
+    if (waitForProcessStop(pid, 1000000, 10000000)) {
+        ALOGE("Meida Server process died!\n");
+        unmountAudioHAL();
+        return 178;
+    }
+
+    ALOGV("Soft-Installed!\n");
+
+    return 0;
+}
+
+int unmountAudioHAL() {
+    umount("/system/lib/hw");
+    umount("/system/etc/audio_policy.conf");
+    umount("/vendor/etc/audio_policy.conf");
+    return 0;
+}

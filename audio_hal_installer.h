@@ -21,5 +21,7 @@
 
 int installAudioHAL();
 int uninstallAudioHAL();
+int mountAudioHAL();
+int unmountAudioHAL();
 
 #endif

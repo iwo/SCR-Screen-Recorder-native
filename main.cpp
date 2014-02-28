@@ -132,6 +132,10 @@ int processCommand() {
         return installAudioHAL();
     } else if (strncmp(outputName, "uninstall_audio", 15) == 0) {
         return uninstallAudioHAL();
+    } else if (strncmp(outputName, "mount_audio", 11) == 0) {
+        return mountAudioHAL();
+    } else if (strncmp(outputName, "unmount_audio", 13) == 0) {
+        return unmountAudioHAL();
     }
     return 166;
 }
