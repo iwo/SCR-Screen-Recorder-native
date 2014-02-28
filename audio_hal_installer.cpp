@@ -390,9 +390,18 @@ int mountAudioHAL() {
     return 0;
 }
 
+void forceUnmount(const char *path) {
+    if (umount2(path, MNT_DETACH)) {
+        ALOGE("Can't uninstall %s error: %s", path, strerror(errno));
+    }
+}
+
 int unmountAudioHAL() {
-    umount("/system/lib/hw");
-    umount("/system/etc/audio_policy.conf");
-    umount("/vendor/etc/audio_policy.conf");
+    forceUnmount("/system/lib/hw");
+    forceUnmount("/system/etc/audio_policy.conf");
+    if (fileExists("/vendor/etc/audio_policy.conf")) {
+        forceUnmount("/vendor/etc/audio_policy.conf");
+    }
+    stopMediaServer();
     return 0;
 }
