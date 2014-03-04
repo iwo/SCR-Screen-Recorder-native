@@ -333,8 +333,8 @@ int uninstallAudioHAL() {
 int mountAudioHAL() {
     ALOGV("Soft-Installing SCR audio HAL\n");
     char baseDir [1024];
-    char modulesPath [1024];
-    char policyPath [1024];
+    char vendorPolicyPath [1024];
+    char systemPolicyPath [1024];
 
     if (fgets(baseDir, 1023, stdin) == NULL) {
         ALOGE("No base directory specified");
@@ -342,47 +342,29 @@ int mountAudioHAL() {
     }
     trim(baseDir);
 
-    sprintf(modulesPath, "%.950s/hw", baseDir);
-    sprintf(policyPath, "%.950s/audio_policy.conf", baseDir);
+    sprintf(vendorPolicyPath, "%.950s/vendor_audio_policy.conf", baseDir);
+    sprintf(systemPolicyPath, "%.950s/system_audio_policy.conf", baseDir);
 
     ALOGV("Linking modules dir");
-    if (mount(modulesPath, "/system/lib/hw", NULL, MS_BIND, 0)) {
+    if (mount(baseDir, "/system/lib/hw", NULL, MS_BIND, 0)) {
         ALOGE("Error linking modules directory. error: %s", strerror(errno));
         return 174;
     }
 
-    if (fileExists(policyPath)) {
-        ALOGV("Linking audio policy file\n");
-        if (fileExists("/vendor/etc/audio_policy.conf")) {
-            if (mount(policyPath, "/vendor/etc/audio_policy.conf", NULL, MS_BIND, 0)) {
-                ALOGE("Error linking policy file. error: %s", strerror(errno));
-                unmountAudioHAL();
-                return 175;
-            }
-        }
-        if (fileExists("/system/etc/audio_policy.conf")) {
-            if (mount(policyPath, "/system/etc/audio_policy.conf", NULL, MS_BIND, 0)) {
-                ALOGE("Error linking policy file. error: %s", strerror(errno));
-                unmountAudioHAL();
-                return 176;
-            }
+    if (fileExists("/vendor/etc/audio_policy.conf") && fileExists(vendorPolicyPath)) {
+        ALOGV("Linking vendor audio policy file");
+        if (mount(vendorPolicyPath, "/vendor/etc/audio_policy.conf", NULL, MS_BIND, 0)) {
+            ALOGE("Error linking policy file. error: %s", strerror(errno));
+            return 175;
         }
     }
 
-    stopMediaServer();
-    int pid = waitForMediaServerPid();
-
-    if (pid == -1) {
-        ALOGE("Media Server process not showing up!\n");
-        unmountAudioHAL();
-        return 177;
-    }
-
-    ALOGV("Waiting 10s to see if mediaserver process %d won't die\n", pid);
-    if (waitForProcessStop(pid, 1000000, 10000000)) {
-        ALOGE("Meida Server process died!\n");
-        unmountAudioHAL();
-        return 178;
+    if (fileExists("/system/etc/audio_policy.conf") && fileExists(systemPolicyPath)) {
+        ALOGV("Linking system audio policy file");
+        if (mount(systemPolicyPath, "/system/etc/audio_policy.conf", NULL, MS_BIND, 0)) {
+            ALOGE("Error linking policy file. error: %s", strerror(errno));
+            return 176;
+        }
     }
 
     ALOGV("Soft-Installed!\n");
@@ -402,6 +384,5 @@ int unmountAudioHAL() {
     if (fileExists("/vendor/etc/audio_policy.conf")) {
         forceUnmount("/vendor/etc/audio_policy.conf");
     }
-    stopMediaServer();
     return 0;
 }
