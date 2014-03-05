@@ -386,3 +386,22 @@ int unmountAudioHAL() {
     }
     return 0;
 }
+
+int readPidAndKill(int signal) {
+    char pidString[16];
+    fgets(pidString, 16, stdin);
+    int pid = atoi(pidString);
+    if (pid == 0) {
+        return 1;
+    }
+    kill(pid, signal);
+    return 0;
+}
+
+int killKill() {
+    return readPidAndKill(SIGKILL);
+}
+
+int killTerm() {
+    return readPidAndKill(SIGTERM);
+}

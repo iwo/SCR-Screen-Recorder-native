@@ -136,6 +136,10 @@ int processCommand() {
         return mountAudioHAL();
     } else if (strncmp(outputName, "unmount_audio", 13) == 0) {
         return unmountAudioHAL();
+    } else if (strncmp(outputName, "kill_kill", 9) == 0) {
+        return killKill();
+    } else if (strncmp(outputName, "kill_term", 9) == 0) {
+        return killTerm();
     }
     return 166;
 }
