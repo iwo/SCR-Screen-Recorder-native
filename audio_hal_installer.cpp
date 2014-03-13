@@ -387,6 +387,45 @@ int unmountAudioHAL() {
     return 0;
 }
 
+bool crashUnmount(const char *path) {
+    if (umount2(path, MNT_DETACH) == 0) {
+        ALOGV("Uninstalled: %s", path);
+        return true;
+    }
+    return false;
+}
+
+void forkUmountProcess(const char* executablePath) {
+    ALOGV("Emergency uninstall");
+    char umountCommand[1024];
+    sprintf(umountCommand, "%s umount", executablePath);
+    pid_t pid = fork();
+    int status = -1;
+    if (pid == -1) {
+        ALOGW("Error forking process: %s ", strerror(errno));
+    } else if (pid == 0) {
+        if (execlp("su", "su", "--mount-master", "-c", umountCommand, NULL) == -1) {
+            ALOGW("Error executing command: %s ", strerror(errno));
+        }
+    } else {
+        waitpid(pid, &status, 0);
+        ALOGV("Uninstall process returned %d", status);
+    }
+}
+
+int crashUnmountAudioHAL(const char* executablePath) {
+    bool uninstalled = false;
+    uninstalled |= crashUnmount("/system/lib/hw");
+    uninstalled |= crashUnmount("/system/etc/audio_policy.conf");
+    if (fileExists("/vendor/etc/audio_policy.conf")) {
+        uninstalled |= crashUnmount("/vendor/etc/audio_policy.conf");
+    }
+    if (uninstalled && executablePath != NULL) {
+        forkUmountProcess(executablePath);
+    }
+    return 0;
+}
+
 int readPidAndKill(int signal) {
     char pidString[16];
     fgets(pidString, 16, stdin);

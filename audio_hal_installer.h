@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mount.h>
+#include <sys/wait.h>
 #include <dirent.h>
 #include <signal.h>
 
@@ -23,6 +24,7 @@ int installAudioHAL();
 int uninstallAudioHAL();
 int mountAudioHAL();
 int unmountAudioHAL();
+int crashUnmountAudioHAL(const char* executablePath);
 int killKill();
 int killTerm();
 

@@ -15,7 +15,9 @@ int main(int argc, char* argv[]) {
     mainThread = pthread_self();
     commandThread = mainThread; // will be changed when command thread is started
 
-    if (argc == 6) {
+    if (argc == 2 && strncmp(argv[1], "umount", 6) == 0) {
+        return crashUnmountAudioHAL(NULL);
+    } if (argc == 6) {
         testMode = true;
 
         reqWidth = atoi(argv[1]);
@@ -33,7 +35,11 @@ int main(int argc, char* argv[]) {
         audioSamplingRate = 16000;
     } else {
 
-    getOutputName();
+    if (argc >= 1) {
+        getOutputName(argv[0]);
+    } else {
+        getOutputName(NULL);
+    }
     if (outputName[0] != '/') {
         return processCommand();
     }
@@ -144,9 +150,10 @@ int processCommand() {
     return 166;
 }
 
-void getOutputName() {
+void getOutputName(const char* executableName) {
     if (fgets(outputName, 512, stdin) == NULL) {
         ALOGV("cancelled");
+        crashUnmountAudioHAL(executableName);
         exit(200);
         // stop(200, "cancelled");
     }

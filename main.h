@@ -68,7 +68,7 @@ long uLastFrame = -1;
 
 void getRotation();
 void getAudioSetting();
-void getOutputName();
+void getOutputName(const char* executableName);
 void getResolution();
 void getPadding();
 void getFrameRate();
