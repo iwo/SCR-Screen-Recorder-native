@@ -187,7 +187,7 @@ void FFmpegOutput::startAudioInput() {
                         audioSamplingRate,
                         AUDIO_FORMAT_PCM_16_BIT,
                         AUDIO_CHANNEL_IN_MONO,
-                        4096,
+                        0,
     #if SCR_SDK_VERSION < 17
                         (AudioRecord::record_flags) 0,
     #endif // SCR_SDK_VERSION < 17
@@ -203,6 +203,7 @@ void FFmpegOutput::startAudioInput() {
     if (err != NO_ERROR) {
         stop(237, "Can't start audio source");
     }
+    audioRecordStarted = true;
 }
 
 static void staticAudioRecordCallback(int event, void* user, void *info) {
@@ -388,7 +389,7 @@ void FFmpegOutput::closeOutput(bool fromMainThread) {
     /* free the stream */
     avformat_free_context(oc);
 
-    if (audioSource != SCR_AUDIO_MUTE) {
+    if (audioRecordStarted) {
         ALOGV("Stopping audio");
         audioRecord->stop();
         // don't free audioRecord as the destructor causes SIGSEGV on many devices

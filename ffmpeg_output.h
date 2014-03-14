@@ -32,6 +32,7 @@ public:
           outSamples(NULL),
           sampleCount(0),
           audioRecord(NULL),
+          audioRecordStarted(false),
           inSamplesSize(0),
           inSamples(NULL),
           inSamplesStart(0),
@@ -64,6 +65,7 @@ private:
     int64_t sampleCount;
 
     AudioRecord *audioRecord;
+    bool audioRecordStarted;
     int inSamplesSize;
     float *inSamples;
     int inSamplesStart, inSamplesEnd;
