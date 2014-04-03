@@ -370,24 +370,34 @@ void FFmpegOutput::renderFrame() {
 
 void FFmpegOutput::closeOutput(bool fromMainThread) {
     ALOGV("Closing FFmpeg output %d", fromMainThread);
-    mrRunning = false;
-    pthread_mutex_unlock(&frameReadyMutex);
-    pthread_join(encodingThread, NULL);
+    if (mrRunning) {
+        mrRunning = false;
+        pthread_mutex_unlock(&frameReadyMutex);
+        pthread_join(encodingThread, NULL);
+    }
 
-    ALOGV("Writing trailer");
-    av_write_trailer(oc);
+    if (oc) {
+        if (oc->pb) {
+            ALOGV("Writing trailer");
+            av_write_trailer(oc);
+            avio_close(oc->pb);
+        }
 
-    ALOGV("streams and codecs cleanup");
-    avcodec_close(videoStream->codec);
-    av_freep(&frames[0]->data[0]);
-    avcodec_free_frame(&frames[0]);
-    av_freep(&frames[1]->data[0]);
-    avcodec_free_frame(&frames[1]);
+        if (videoStream) {
+            ALOGV("streams and codecs cleanup");
+            avcodec_close(videoStream->codec);
+        }
+        /* The process will terminate soon anyway we don't bother freeing this
+        as it requires checking what's allocated to avoid SIGSEGV
+        av_freep(&frames[0]->data[0]);
+        avcodec_free_frame(&frames[0]);
+        av_freep(&frames[1]->data[0]);
+        avcodec_free_frame(&frames[1]); */
 
-    avio_close(oc->pb);
 
-    /* free the stream */
-    avformat_free_context(oc);
+        /* free the stream */
+        avformat_free_context(oc);
+    }
 
     if (audioRecordStarted) {
         ALOGV("Stopping audio");
