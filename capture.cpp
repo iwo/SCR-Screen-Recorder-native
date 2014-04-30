@@ -161,7 +161,13 @@ status_t screenshotUpdate(int reqWidth, int reqHeight) {
     #endif // SCR_SDK_VERSION
 
     if (err != NO_ERROR) {
-        stop(217, "update failed");
+        updateErrors++;
+        ALOGW("update error %d", updateErrors);
+        if (frameCount < 2 || updateErrors > MAX_UPDATE_ERRORS) {
+            stop(217, "update failed");
+        }
+    } else {
+        updateErrors = 0;
     }
     #endif // ndef SCR_FB
     return err;

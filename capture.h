@@ -30,6 +30,9 @@
 #endif // SCR_SDK_VERSION
 #endif //SCR_FB
 
+// allow up to 10 consecutive screenshot update errors before stopping
+#define MAX_UPDATE_ERRORS 10
+
 using namespace android;
 
 // external
@@ -54,6 +57,8 @@ sp<GLConsumer> glConsumer;
 sp<BufferQueue> bufferQueue;
 #endif // SCR_SDK_VERSION 19
 #endif //SCR_FB
+
+int updateErrors = 0;
 
 void swapPadding();
 status_t screenshotUpdate(int reqWidth, int reqHeight);
