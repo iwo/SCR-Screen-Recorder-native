@@ -714,8 +714,13 @@ void SCRListener::notify(int msg, int ext1, int ext2)
     } else if (msg == MEDIA_RECORDER_TRACK_EVENT_ERROR) {
         ALOGE("MEDIA_RECORDER_TRACK_EVENT_ERROR");
         if (mrRunning) {
-            error = 228;
-            // stop(228, "MEDIA_RECORDER_TRACK_EVENT_ERROR");
+            if (trackId == 2) {
+                error = 197;
+                // stop(197, "MEDIA_RECORDER_TRACK_EVENT_ERROR - audio");
+            } else {
+                error = 228;
+                // stop(228, "MEDIA_RECORDER_TRACK_EVENT_ERROR - video");
+            }
         } else {
             error = 249;
             // stop(249, "MEDIA_RECORDER_TRACK_EVENT_ERROR during startup");
