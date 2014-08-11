@@ -95,8 +95,7 @@ int main(int argc, char* argv[]) {
     fflush(stdout);
     ALOGV("Setup finished. Starting rendering loop.");
 
-    targetFrameTime = 1000000 / frameRate;
-    int64_t startTime = getTimeMs();
+    startTime = getTimeMs();
 
     while (mrRunning && !finished) {
         if (restrictFrameRate) {
@@ -380,24 +379,10 @@ const char* getThreadName() {
 }
 
 void waitForNextFrame() {
-    timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    long usec = now.tv_nsec / 1000;
-
-    if (uLastFrame == -1) {
-        uLastFrame = usec;
-        return;
-    }
-
-    long time = usec - uLastFrame;
-    if (time < 0) {
-        time += 1000000;
-    }
-
-    uLastFrame = usec;
-
-    if (time < targetFrameTime) {
-        usleep(targetFrameTime - time);
+    int64_t now = getTimeMs();
+    int64_t sleepTime = startTime + (frameCount * 1000l / frameRate) - now;
+    if (sleepTime > 0) {
+        usleep(sleepTime * 1000);
     }
 }
 

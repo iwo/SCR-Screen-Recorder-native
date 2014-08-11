@@ -50,7 +50,7 @@ int videoWidth, videoHeight;
 bool finished = false;
 bool stopping = false;
 int errorCode = 0;
-int targetFrameTime = 0;
+int64_t startTime = 0ll;
 bool mrRunning = false;
 int frameCount = 0;
 
