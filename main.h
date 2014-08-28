@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <pthread.h>
 #include <cutils/log.h>
+#include <cutils/sched_policy.h>
 #include <sys/time.h>
 #include <signal.h>
 #include <sys/prctl.h>

@@ -5,6 +5,8 @@ using namespace android;
 
 int main(int argc, char* argv[]) {
     ProcessState::self()->startThreadPool();
+    set_sched_policy(0, SP_FOREGROUND);
+
     printf("ready\n");
     fflush(stdout);
 
