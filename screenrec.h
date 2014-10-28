@@ -28,6 +28,7 @@
 #define SCR_AUDIO_MUTE 'x'
 #define SCR_AUDIO_MIC 'm'
 #define SCR_AUDIO_INTERNAL 'i'
+#define SCR_AUDIO_MIX '+'
 
 // Configuration parameters
 extern char outputName [512];
