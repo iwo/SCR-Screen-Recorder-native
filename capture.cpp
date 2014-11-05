@@ -41,7 +41,7 @@ void setupInput() {
     if (display == NULL) {
         stop(205, "Can't access display");
     }
-    if (screenshot->update(display, Rect(0, 0), true) != NO_ERROR) {
+    if (screenshot->update(display, Rect(0, 0), false) != NO_ERROR) {
         stop(217, "screenshot->update() failed");
     }
     #elif SCR_SDK_VERSION >= 17
@@ -131,7 +131,7 @@ void updateInput() {
             glConsumer = new GLConsumer(consumer, 1, GLConsumer::TEXTURE_EXTERNAL, true, false);
             ALOGV("Creating GLConsumer");
         }
-        if (ScreenshotClient::capture(display, producer, Rect(0, 0), reqWidth, reqHeight, 0, -1, true) != NO_ERROR) {
+        if (ScreenshotClient::capture(display, producer, Rect(0, 0), reqWidth, reqHeight, 0, -1, false) != NO_ERROR) {
             stop(217, "capture failed");
         }
         #elif SCR_SDK_VERSION == 19
@@ -172,7 +172,7 @@ status_t screenshotUpdate(int reqWidth, int reqHeight) {
     #endif
 
     #if SCR_SDK_VERSION >= 21
-    err = screenshot->update(display, Rect(0, 0), reqWidth, reqHeight, true);
+    err = screenshot->update(display, Rect(0, 0), reqWidth, reqHeight, false);
     #elif SCR_SDK_VERSION >= 17
     err = screenshot->update(display, reqWidth, reqHeight);
     #else
