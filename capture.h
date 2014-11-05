@@ -56,7 +56,7 @@ sp<GLConsumer> glConsumer;
 #if SCR_SDK_VERSION == 19
 sp<BufferQueue> bufferQueue;
 #endif // SCR_SDK_VERSION 19
-#if SCR_SDK_VERSION >= 20
+#if SCR_SDK_VERSION >= 21
 sp<IGraphicBufferProducer> producer;
 sp<IGraphicBufferConsumer> consumer;
 #endif // SCR_SDK_VERSION 20

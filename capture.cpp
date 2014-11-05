@@ -36,12 +36,12 @@ void setupInput() {
     inputBase = (void const *)((char const *)fbMapBase + offset);
 #else
     screenshot = new ScreenshotClient();
-    #if SCR_SDK_VERSION >= 20
+    #if SCR_SDK_VERSION >= 21
     display = SurfaceComposerClient::getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain);
     if (display == NULL) {
         stop(205, "Can't access display");
     }
-    if (screenshot->update(display, Rect(), true) != NO_ERROR) {
+    if (screenshot->update(display, Rect(0, 0), true) != NO_ERROR) {
         stop(217, "screenshot->update() failed");
     }
     #elif SCR_SDK_VERSION >= 17
@@ -125,13 +125,13 @@ void updateInput() {
 #else
 
     if (useOes) {
-        #if SCR_SDK_VERSION >= 20
+        #if SCR_SDK_VERSION >= 21
         if (glConsumer.get() == NULL) {
             BufferQueue::createBufferQueue(&producer, &consumer);
             glConsumer = new GLConsumer(consumer, 1, GLConsumer::TEXTURE_EXTERNAL, true, false);
             ALOGV("Creating GLConsumer");
         }
-        if (ScreenshotClient::capture(display, producer, Rect(), reqWidth, reqHeight, 0, -1, true) != NO_ERROR) {
+        if (ScreenshotClient::capture(display, producer, Rect(0, 0), reqWidth, reqHeight, 0, -1, true) != NO_ERROR) {
             stop(217, "capture failed");
         }
         #elif SCR_SDK_VERSION == 19
@@ -171,8 +171,8 @@ status_t screenshotUpdate(int reqWidth, int reqHeight) {
         screenshot->release();
     #endif
 
-    #if SCR_SDK_VERSION >= 20
-    err = screenshot->update(display, Rect(), reqWidth, reqHeight, true);
+    #if SCR_SDK_VERSION >= 21
+    err = screenshot->update(display, Rect(0, 0), reqWidth, reqHeight, true);
     #elif SCR_SDK_VERSION >= 17
     err = screenshot->update(display, reqWidth, reqHeight);
     #else
@@ -211,14 +211,14 @@ void closeInput() {
         glConsumer.clear();
     }
     #endif // SCR_SDK_VERSION 18
-    #if SCR_SDK_VERSION >= 20
+    #if SCR_SDK_VERSION >= 21
     if (consumer.get() != NULL) {
         consumer.clear();
     }
     if (producer.get() != NULL) {
         producer.clear();
     }
-    #endif // SCR_SDK_VERSION 20
+    #endif // SCR_SDK_VERSION 21
     #if SCR_SDK_VERSION == 19
     if (bufferQueue.get() != NULL) {
         bufferQueue.clear();
