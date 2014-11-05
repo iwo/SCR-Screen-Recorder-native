@@ -53,9 +53,13 @@ sp<IBinder> display;
 #if SCR_SDK_VERSION >= 18
 sp<GLConsumer> glConsumer;
 #endif // SCR_SDK_VERSION 18
-#if SCR_SDK_VERSION >= 19
+#if SCR_SDK_VERSION == 19
 sp<BufferQueue> bufferQueue;
 #endif // SCR_SDK_VERSION 19
+#if SCR_SDK_VERSION >= 20
+sp<IGraphicBufferProducer> producer;
+sp<IGraphicBufferConsumer> consumer;
+#endif // SCR_SDK_VERSION 20
 #endif //SCR_FB
 
 int updateErrors = 0;

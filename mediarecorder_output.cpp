@@ -43,7 +43,11 @@ void AbstractMediaRecorderOutput::setupMediaRecorder() {
     }
     sp<SCRListener> listener = new SCRListener();
     mr->setListener(listener);
+    #if SCR_SDK_VERSION >= 20
+    mr->setVideoSource(VIDEO_SOURCE_SURFACE);
+    #else
     mr->setVideoSource(VIDEO_SOURCE_GRALLOC_BUFFER);
+    #endif
     if (audioSource != SCR_AUDIO_MUTE) {
         mr->setAudioSource(AUDIO_SOURCE_MIC);
     }

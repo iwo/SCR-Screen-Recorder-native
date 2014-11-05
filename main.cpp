@@ -286,7 +286,7 @@ void listenForCommand() {
     }
 }
 
-void* commandThreadStart(void* args) {
+void* commandThreadStart(void* args __unused) {
     if (testMode) {
         sleep(10);
     } else {
@@ -307,13 +307,13 @@ void interruptCommandThread() {
     }
 }
 
-void sigpipeHandler(int param) {
+void sigpipeHandler(int param __unused) {
     ALOGI("SIGPIPE received");
     exit(222);
     // stop(222, "killed, SIGPIPE received");
 }
 
-void sigusr1Handler(int param) {
+void sigusr1Handler(int param __unused) {
     ALOGV("SIGUSR1 received");
     pthread_exit(0);
 }
