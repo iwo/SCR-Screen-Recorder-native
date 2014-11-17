@@ -15,7 +15,7 @@ SCR_SHARED_LIBRARIES := \
     libGLESv2 \
     libz \
 
-ifneq (PLATFORM_SDK_VERSION, 15)
+ifneq ($(PLATFORM_SDK_VERSION), 15)
     SCR_SHARED_LIBRARIES += libselinux
 endif
 
