@@ -1,9 +1,9 @@
-
 #include "main.h"
 
 using namespace android;
 
 int main(int argc, char* argv[]) {
+    setupSELinux();
     ProcessState::self()->startThreadPool();
     set_sched_policy(0, SP_FOREGROUND);
 
@@ -131,7 +131,36 @@ int main(int argc, char* argv[]) {
 
     fixFilePermissions();
     ALOGV("main thread completed");
+
+    restoreSELinux();
     return errorCode;
+}
+
+void setupSELinux() {
+    #if SCR_SDK_VERSION >= 16
+    selinuxEnforcing = security_getenforce();
+    ALOGV("SELinux enforcing %d", selinuxEnforcing);
+    char *con;
+    if (getpidcon(getpid(), &con) < 0) {
+        ALOGV("Can't fetch context\n");
+    } else {
+        ALOGV("Running in SELinux context %s\n", con);
+        freecon(con);
+    }
+    if (selinuxEnforcing > 0) {
+        ALOGW("Disabling SELinux enforcing");
+        security_setenforce(0);
+    }
+    #endif
+}
+
+void restoreSELinux() {
+    #if SCR_SDK_VERSION >= 16
+    if (selinuxEnforcing > 0) {
+        SLOGW("Restoring SELinux enforcing to %d", selinuxEnforcing);
+        security_setenforce(selinuxEnforcing);
+    }
+    #endif
 }
 
 int processCommand() {
@@ -155,6 +184,7 @@ void getOutputName(const char* executableName) {
     if (fgets(outputName, 512, stdin) == NULL) {
         ALOGV("cancelled");
         crashUnmountAudioHAL(executableName);
+        restoreSELinux();
         exit(200);
         // stop(200, "cancelled");
     }
@@ -309,6 +339,7 @@ void interruptCommandThread() {
 
 void sigpipeHandler(int param __unused) {
     ALOGI("SIGPIPE received");
+    restoreSELinux();
     exit(222);
     // stop(222, "killed, SIGPIPE received");
 }
@@ -354,6 +385,7 @@ void stop(int error, bool fromMainThread, const char* message) {
     if (fromMainThread) {
         fixFilePermissions();
         ALOGV("exiting main thread");
+        restoreSELinux();
         exit(errorCode);
     }
 }

@@ -21,6 +21,10 @@
 #include <sys/prctl.h>
 #include <stdlib.h>
 
+#if SCR_SDK_VERSION >= 16
+#include <selinux/selinux.h>
+#endif
+
 #include <binder/ProcessState.h>
 
 // Configuration parameters
@@ -58,6 +62,7 @@ int frameCount = 0;
 // private
 ScrOutput *output;
 bool testMode = false;
+int selinuxEnforcing;
 
 // pthreads
 pthread_t mainThread;
@@ -93,5 +98,8 @@ void sigusr1Handler(int param);
 void fixFilePermissions();
 const char* getThreadName();
 int processCommand();
+
+void setupSELinux();
+void restoreSELinux();
 
 #endif
