@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
 }
 
 void setupSELinux() {
-    #if SCR_SDK_VERSION >= 16
+    #if SCR_SDK_VERSION >= 18
     selinuxEnforcing = security_getenforce();
     ALOGV("SELinux enforcing %d", selinuxEnforcing);
     char *con;
@@ -155,7 +155,7 @@ void setupSELinux() {
 }
 
 void restoreSELinux() {
-    #if SCR_SDK_VERSION >= 16
+    #if SCR_SDK_VERSION >= 18
     if (selinuxEnforcing > 0) {
         SLOGW("Restoring SELinux enforcing to %d", selinuxEnforcing);
         security_setenforce(selinuxEnforcing);

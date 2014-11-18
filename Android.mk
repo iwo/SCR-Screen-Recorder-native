@@ -16,7 +16,11 @@ SCR_SHARED_LIBRARIES := \
     libz \
 
 ifneq ($(PLATFORM_SDK_VERSION), 15)
+ifneq ($(PLATFORM_SDK_VERSION), 16)
+ifneq ($(PLATFORM_SDK_VERSION), 17)
     SCR_SHARED_LIBRARIES += libselinux
+endif
+endif
 endif
 
 SCR_SRC_FILES := \
