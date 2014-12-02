@@ -208,10 +208,10 @@ void FFmpegOutput::startAudioInput() {
 
 static void staticAudioRecordCallback(int event, void* user, void *info) {
    FFmpegOutput *output = (FFmpegOutput*)user;
-   output->audioRecordCallback(event, user, info);
+   output->audioRecordCallback(event, info);
 }
 
-void FFmpegOutput::audioRecordCallback(int event, void* user, void *info) {
+void FFmpegOutput::audioRecordCallback(int event, void *info) {
     if (event != 0) return;
 
     AudioRecord::Buffer *buffer = (AudioRecord::Buffer*) info;

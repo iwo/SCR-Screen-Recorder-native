@@ -163,10 +163,10 @@ void updateInput() {
 #endif
 }
 
+#ifndef SCR_FB
 status_t screenshotUpdate(int reqWidth, int reqHeight) {
     status_t err = NO_ERROR;
 
-    #ifndef SCR_FB
     #if SCR_SDK_VERSION >= 18
         screenshot->release();
     #endif
@@ -188,9 +188,9 @@ status_t screenshotUpdate(int reqWidth, int reqHeight) {
     } else {
         updateErrors = 0;
     }
-    #endif // ndef SCR_FB
     return err;
 }
+#endif // ndef SCR_FB
 
 void closeInput() {
 #ifdef SCR_FB

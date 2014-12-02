@@ -48,7 +48,7 @@ public:
     virtual void setupOutput();
     virtual void renderFrame();
     virtual void closeOutput(bool fromMainThread);
-    void audioRecordCallback(int event, void* user, void *info);
+    void audioRecordCallback(int event, void *info);
 
 private:
 
