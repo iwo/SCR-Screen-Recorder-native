@@ -378,7 +378,7 @@ void GLMediaRecorderOutput::setupGl() {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, mPixels);
         checkGlError("glTexImage2D", true);
         
-        GLfloat wTexPortion = inputStride/(float)texWidth;
+        GLfloat wTexPortion = inputWidth/(float)texWidth;
         GLfloat hTexPortion = inputHeight/(float)texHeight;
 
         texCoordinates[3] = wTexPortion;
