@@ -6,7 +6,6 @@
 #ifdef SCR_FFMPEG
 #include "ffmpeg_output.h"
 #endif
-#include "audio_hal_installer.h"
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -21,14 +20,10 @@
 #include <sys/prctl.h>
 #include <stdlib.h>
 
-#if SCR_SDK_VERSION >= 16
-#include <selinux/selinux.h>
-#endif
-
 #include <binder/ProcessState.h>
 
 // Configuration parameters
-char outputName [512];
+char *outputName;
 int rotation;
 char audioSource = SCR_AUDIO_MUTE;
 int reqWidth = 0;
@@ -62,44 +57,22 @@ int frameCount = 0;
 // private
 ScrOutput *output;
 bool testMode = false;
-int selinuxEnforcing;
 
 // pthreads
 pthread_t mainThread;
 pthread_t stoppingThread;
-pthread_t commandThread;
 
 // frame timers
 long uLastFrame = -1;
 
-void getRotation();
-void getAudioSetting();
-void getOutputName(const char* executableName);
-void getResolution();
-void getPadding();
-void getFrameRate();
-void getUseGl();
-void getColorFormat();
-void getVideoBitrate();
-void getAudioSamplingRate();
-void getVideoEncoder();
-void getAllowVerticalFrames();
-void trim(char* str);
+void parseConfig(const char* config);
 void initializeTransformation(char* transform);
 void closeOutput();
 void closeInput();
 void adjustRotation();
 void waitForNextFrame();
-void* commandThreadStart(void* args);
-void listenForCommand();
-void interruptCommandThread();
-void sigpipeHandler(int param);
-void sigusr1Handler(int param);
+void sigIntHandler(int param __unused);
 void fixFilePermissions();
 const char* getThreadName();
-int processCommand();
-
-void setupSELinux();
-void restoreSELinux();
 
 #endif

@@ -31,7 +31,7 @@
 #define SCR_AUDIO_MIX '+'
 
 // Configuration parameters
-extern char outputName [512];
+extern char *outputName;
 extern int rotation;
 extern char audioSource;
 extern int reqWidth;
@@ -67,6 +67,8 @@ extern int frameCount;
 
 extern pthread_t stoppingThread;
 
+int startRecording(char *config);
+
 void setupInput();
 
 void updateInput();
@@ -85,5 +87,9 @@ public:
     virtual void renderFrame() = 0;
     virtual void closeOutput(bool fromMainThread) = 0;
 };
+
+
+void shellSetState(const char* state);
+void shellSetError(int errorCode);
 
 #endif

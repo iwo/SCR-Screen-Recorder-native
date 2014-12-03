@@ -330,17 +330,10 @@ int uninstallAudioHAL() {
     return 0;
 }
 
-int mountAudioHAL() {
+int mountAudioHAL(const char *baseDir) {
     ALOGV("Soft-Installing SCR audio HAL\n");
-    char baseDir [1024];
     char vendorPolicyPath [1024];
     char systemPolicyPath [1024];
-
-    if (fgets(baseDir, 1023, stdin) == NULL) {
-        ALOGE("No base directory specified");
-        return 173;
-    }
-    trim(baseDir);
 
     sprintf(vendorPolicyPath, "%.950s/vendor_audio_policy.conf", baseDir);
     sprintf(systemPolicyPath, "%.950s/system_audio_policy.conf", baseDir);
@@ -424,23 +417,4 @@ int crashUnmountAudioHAL(const char* executablePath) {
         forkUmountProcess(executablePath);
     }
     return 0;
-}
-
-int readPidAndKill(int signal) {
-    char pidString[16];
-    fgets(pidString, 16, stdin);
-    int pid = atoi(pidString);
-    if (pid == 0) {
-        return 1;
-    }
-    kill(pid, signal);
-    return 0;
-}
-
-int killKill() {
-    return readPidAndKill(SIGKILL);
-}
-
-int killTerm() {
-    return readPidAndKill(SIGTERM);
 }

@@ -28,6 +28,7 @@ SCR_SRC_FILES := \
     capture.cpp \
     audio_hal_installer.cpp \
     main.cpp \
+    shell.cpp \
 
 SCR_CFLAGS := -D__STDC_CONSTANT_MACROS -DSCR_SDK_VERSION=$(PLATFORM_SDK_VERSION)
 

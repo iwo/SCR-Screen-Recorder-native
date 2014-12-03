@@ -22,10 +22,8 @@
 
 int installAudioHAL();
 int uninstallAudioHAL();
-int mountAudioHAL();
+int mountAudioHAL(const char *baseDir);
 int unmountAudioHAL();
 int crashUnmountAudioHAL(const char* executablePath);
-int killKill();
-int killTerm();
 
 #endif
