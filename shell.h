@@ -27,6 +27,8 @@
 int selinuxEnforcing;
 pid_t workerPid = -1;
 pid_t logcatPid = -1;
+pid_t suPid = -1;
+int suPipe[2];
 
 
 // shell methods
@@ -38,6 +40,7 @@ void sigChldHandler(int param);
 void runLogcat(char *path);
 void commandForResult(const char *command, int exitValue);
 int killStrPid(const char *strPid, int sig);
+void getSuVersion();
 
 inline void commandSuccess(const char* command);
 inline void commandError(const char* command, const char* error);

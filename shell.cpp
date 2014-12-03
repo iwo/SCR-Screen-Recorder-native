@@ -13,6 +13,8 @@ int main(int argc, char* argv[]) {
         return ret;
     }
 
+    getSuVersion();
+
     //TODO: handle test mode
 
     shellSetState("READY");
@@ -128,10 +130,34 @@ void sigChldHandler(int param __unused) {
         }
         shellSetState("READY");
     } else if (pid == logcatPid) {
+        logcatPid = -1;
         if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
             commandSuccess("logcat");
         } else {
             commandError("logcat", WEXITSTATUS(status));
+        }
+    } else if (pid == suPid) {
+        suPid = -1;
+        char suResult[128];
+        int resultSize = read(suPipe[0], suResult, 127);
+        if (resultSize >= 0) {
+            suResult[resultSize] = '\0';
+            printf("su version %s\n", suResult);
+            fflush(stdout);
+        }
+        close(suPipe[0]);
+
+        if (WIFEXITED(status)) {
+            int exitStatus = WEXITSTATUS(status);
+            if (exitStatus == 0) {
+                ALOGV("su finished");
+            } else {
+                ALOGE("su returned %d", exitStatus);
+            }
+        } else if (WIFSIGNALED(status)) {
+            ALOGE("su stopped by signal", strsignal(WTERMSIG(status)));
+        } else {
+            ALOGE("su stopped abnormally");
         }
     } else {
         ALOGE("unknown process exit %d", pid);
@@ -145,6 +171,28 @@ void runLogcat(char *path) {
         commandError("logcat", "exec error");
     } else if (logcatPid < 0) {
         commandError("logcat", "fork error");
+    }
+}
+
+void getSuVersion() {
+    if (pipe(suPipe) < 0) {
+        ALOGE("Error creating pipe!");
+        return;
+    }
+    suPid = fork();
+    if (suPid == 0) {
+        fclose(stdin);
+        if (dup2(suPipe[1], STDOUT_FILENO) == -1) {
+            ALOGE("redirecting stdout");
+            exit(-1);
+        }
+        execlp("su", "su", "-v", NULL);
+        ALOGE("su exec failed");
+        exit(-1);
+    } else if (suPid > 0) {
+        close(suPipe[1]);
+    } else {
+        ALOGE("su version fork error");
     }
 }
 
