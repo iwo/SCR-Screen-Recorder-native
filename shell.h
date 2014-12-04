@@ -29,7 +29,8 @@ pid_t workerPid = -1;
 pid_t logcatPid = -1;
 pid_t suPid = -1;
 int suPipe[2];
-
+pid_t mountMasterPid = -1;
+const char *mountMasterCmd;
 
 // shell methods
 void setupSELinux();
@@ -38,11 +39,10 @@ void restoreSELinux();
 void sigPipeHandler(int param);
 void sigChldHandler(int param);
 void runLogcat(char *path);
+void runMountMaster(const char *executable, const char *command, const char *basePath);
 void commandForResult(const char *command, int exitValue);
 int killStrPid(const char *strPid, int sig);
 void getSuVersion();
 
-inline void commandSuccess(const char* command);
-inline void commandError(const char* command, const char* error);
-inline void commandError(const char* command, int errorCode);
+inline void commandResult(const char *command, int result);
 #endif

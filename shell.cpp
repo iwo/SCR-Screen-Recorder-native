@@ -7,6 +7,18 @@ int main(int argc, char* argv[]) {
     set_sched_policy(0, SP_FOREGROUND);
     prctl(PR_SET_PDEATHSIG, SIGKILL);
 
+    if (argc == 2 && strncmp(argv[1], "unmount_audio", 13) == 0) {
+        int ret = unmountAudioHAL();
+        restoreSELinux();
+        return ret;
+    }
+
+    if (argc == 3 && strncmp(argv[1], "mount_audio", 11) == 0) {
+        int ret = mountAudioHAL(argv[2]);
+        restoreSELinux();
+        return ret;
+    }
+
     if (argc == 2 && strncmp(argv[1], "umount", 6) == 0) {
         int ret = crashUnmountAudioHAL(NULL);
         restoreSELinux();
@@ -54,14 +66,18 @@ int main(int argc, char* argv[]) {
             }
         } else if (strncmp(cmd, "logcat ", 7) == 0) {
             runLogcat(cmd + 7);
+        } else if (strncmp(cmd, "mount_audio_master ", 19) == 0) {
+            runMountMaster(argv[0], "mount_audio", cmd + 19);
         } else if (strncmp(cmd, "mount_audio ", 12) == 0) {
-            commandForResult(cmd, mountAudioHAL(cmd + 12));
+            commandResult(cmd, mountAudioHAL(cmd + 12));
+        } else if (strncmp(cmd, "unmount_audio_master ", 19) == 0) {
+            runMountMaster(argv[0], "unmount_audio", NULL);
         } else if (strncmp(cmd, "unmount_audio", 13) == 0) {
-            commandForResult(cmd, unmountAudioHAL());
+            commandResult(cmd, unmountAudioHAL());
         } else if (strncmp(cmd, "kill_kill ", 10) == 0) {
-            commandForResult(cmd, killStrPid(cmd + 10, SIGKILL));
+            commandResult(cmd, killStrPid(cmd + 10, SIGKILL));
         } else if (strncmp(cmd, "kill_term ", 10) == 0) {
-            commandForResult(cmd, killStrPid(cmd + 10, SIGTERM));
+            commandResult(cmd, killStrPid(cmd + 10, SIGTERM));
         } else if (strncmp(cmd, "quit", 4) == 0) {
             break;
         } else {
@@ -107,37 +123,36 @@ void sigPipeHandler(int param __unused) {
 }
 
 void sigChldHandler(int param __unused) {
-    int status;
+    int status, exitValue;
+    const char *cmd = "unknown process";
     pid_t pid = waitpid(-1, &status, 0);
+
+    if (WIFEXITED(status)) {
+        exitValue = WEXITSTATUS(status);
+    } else if (WIFSIGNALED(status)) {
+        exitValue = 128 + WTERMSIG(status);
+    } else {
+        exitValue = -1;
+    }
+
     if (pid < 0) {
         ALOGV("no child process info");
     } else if (pid == workerPid) {
         workerPid = -1;
-        if (WIFEXITED(status)) {
-            int exitStatus = WEXITSTATUS(status);
-            if (exitStatus == 0) {
-                shellSetState("FINISHED");
-            } else {
-                shellSetError(exitStatus);
-            }
-            ALOGV("worker stopped normally, return %d", exitStatus);
-        } else if (WIFSIGNALED(status)) {
-            shellSetError(128 + WTERMSIG(status));
-            ALOGE("worker stopped by signal", strsignal(WTERMSIG(status)));
+        cmd = "worker";
+        if (exitValue == 0) {
+            shellSetState("FINISHED");
         } else {
-            shellSetError(194);
-            ALOGE("worker stopped abnormally");
+            shellSetError(exitValue);
         }
         shellSetState("READY");
     } else if (pid == logcatPid) {
         logcatPid = -1;
-        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            commandSuccess("logcat");
-        } else {
-            commandError("logcat", WEXITSTATUS(status));
-        }
+        cmd = "logcat";
+        commandResult("logcat", exitValue);
     } else if (pid == suPid) {
         suPid = -1;
+        cmd = "su";
         char suResult[128];
         int resultSize = read(suPipe[0], suResult, 127);
         if (resultSize >= 0) {
@@ -146,21 +161,21 @@ void sigChldHandler(int param __unused) {
             fflush(stdout);
         }
         close(suPipe[0]);
-
-        if (WIFEXITED(status)) {
-            int exitStatus = WEXITSTATUS(status);
-            if (exitStatus == 0) {
-                ALOGV("su finished");
-            } else {
-                ALOGE("su returned %d", exitStatus);
-            }
-        } else if (WIFSIGNALED(status)) {
-            ALOGE("su stopped by signal", strsignal(WTERMSIG(status)));
+    } else if (pid == mountMasterPid) {
+        mountMasterPid = -1;
+        if (strcmp(mountMasterCmd, "mount_audio") == 0) {
+            cmd = "mount_audio_master";
         } else {
-            ALOGE("su stopped abnormally");
+            cmd = "unmount_audio_master";
         }
+        commandResult(cmd, exitValue);
     } else {
         ALOGE("unknown process exit %d", pid);
+    }
+    if (exitValue == 0) {
+        ALOGV("%s finished", cmd);
+    } else {
+        ALOGE("%s exit value: %d", cmd, exitValue);
     }
 }
 
@@ -168,9 +183,20 @@ void runLogcat(char *path) {
     logcatPid = fork();
     if (logcatPid == 0) {
         execlp("logcat", "logcat", "-d", "-f", path, "*:V", NULL);
-        commandError("logcat", "exec error");
+        commandResult("logcat", -2);
     } else if (logcatPid < 0) {
-        commandError("logcat", "fork error");
+        commandResult("logcat", -3);
+    }
+}
+
+void runMountMaster(const char *executable, const char *command, const char *basePath) {
+    mountMasterPid = fork();
+    mountMasterCmd = command;
+    if (mountMasterPid == 0) {
+        execlp("su", "su", "--mount-master", "--context", "u:r:init:s0", "-c", executable, command, basePath, NULL);
+        commandResult("mount_master", -2);
+    } else if (mountMasterPid < 0) {
+        commandResult("mount_master", -3);
     }
 }
 
@@ -196,14 +222,6 @@ void getSuVersion() {
     }
 }
 
-void commandForResult(const char *command, int exitValue) {
-    if (exitValue == 0) {
-        commandSuccess(command);
-    } else {
-        commandError(command, exitValue);
-    }
-}
-
 int killStrPid(const char *strPid, int sig) {
     int pid = atoi(strPid);
     if (pid < 1) {
@@ -224,20 +242,12 @@ void shellSetError(int errorCode) {
     fflush(stdout);
 }
 
-inline void commandSuccess(const char* command) {
-    ALOGV("command success %s", command);
-    printf("command success %s\n", command);
-    fflush(stdout);
-}
-
-inline void commandError(const char* command, const char* error) {
-    ALOGV("command error %s %s", command, error);
-    printf("command error %s %s\n", command, error);
-    fflush(stdout);
-}
-
-inline void commandError(const char* command, int errorCode) {
-    ALOGV("command error %s %d", command, errorCode);
-    printf("command error %s %d\n", command, errorCode);
+inline void commandResult(const char *command, int result) {
+    if (result == 0) {
+        ALOGV("command result %s %d", command, result);
+    } else {
+        ALOGW("command result %s %d", command, result);
+    }
+    printf("command result %d:%s\n", result, command);
     fflush(stdout);
 }
