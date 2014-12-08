@@ -132,6 +132,7 @@ void initializeTransformation(char *transformation) {
 }
 
 void sigIntHandler(int param __unused) {
+    shellSetState("STOPPING");
     finished = true;
 }
 

@@ -34,6 +34,7 @@ int main(int argc, char* argv[]) {
     workerPid = -1;
 
     while (true) {
+        ALOGV("#");
         char* cmd = fgets(commandBuffer, MAX_COMMAND_LENGTH, stdin);
         if (cmd == NULL) {
             //TODO: handle error
@@ -44,6 +45,10 @@ int main(int argc, char* argv[]) {
         }
 
         if (strncmp(cmd, "start ", 6) == 0) {
+            ALOGV("start");
+            if (workerPid != -1) {
+                ALOGE("Looks like we have some runaway worker process %d", workerPid);
+            }
 
             workerPid = fork();
             if (workerPid == 0) {
@@ -58,26 +63,41 @@ int main(int argc, char* argv[]) {
                 break;
             }
         } else if (strncmp(cmd, "stop", 4) == 0) {
+            ALOGV("stop");
             if (workerPid > 0) {
                 kill(workerPid, SIGINT);
-                //TODO: make sure worker exits timely or kill it
+            } else {
+                ALOGE("no worker process to stop");
+            }
+        } else if (strncmp(cmd, "force_stop", 10) == 0) {
+            ALOGV("force stop");
+            if (workerPid > 0) {
+                kill(workerPid, SIGKILL);
             } else {
                 ALOGE("no worker process to stop");
             }
         } else if (strncmp(cmd, "logcat ", 7) == 0) {
+            ALOGV("%s", cmd);
             runLogcat(cmd + 7);
         } else if (strncmp(cmd, "mount_audio_master ", 19) == 0) {
+            ALOGV("soft-install audio async");
             runMountMaster(argv[0], "mount_audio", cmd + 19);
         } else if (strncmp(cmd, "mount_audio ", 12) == 0) {
+            ALOGV("soft-install audio");
             commandResult(cmd, mountAudioHAL(cmd + 12));
         } else if (strncmp(cmd, "unmount_audio_master ", 19) == 0) {
+            ALOGV("soft-uninstall audio async");
             runMountMaster(argv[0], "unmount_audio", NULL);
         } else if (strncmp(cmd, "unmount_audio", 13) == 0) {
+            ALOGV("soft-uninstall audio");
             commandResult(cmd, unmountAudioHAL());
         } else if (strncmp(cmd, "kill_kill ", 10) == 0) {
+            ALOGV("%s", cmd);
             commandResult(cmd, killStrPid(cmd + 10, SIGKILL));
         } else if (strncmp(cmd, "kill_term ", 10) == 0) {
+            ALOGV("%s", cmd);
             commandResult(cmd, killStrPid(cmd + 10, SIGTERM));
+            ALOGV("%s", cmd);
         } else if (strncmp(cmd, "quit", 4) == 0) {
             break;
         } else {
@@ -180,6 +200,7 @@ void sigChldHandler(int param __unused) {
 }
 
 void runLogcat(char *path) {
+    ALOGV("dump logcat to %s", path);
     logcatPid = fork();
     if (logcatPid == 0) {
         execlp("logcat", "logcat", "-d", "-f", path, "*:V", NULL);
