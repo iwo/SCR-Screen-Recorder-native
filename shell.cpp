@@ -217,7 +217,7 @@ void runLogcat(char *path) {
     ALOGV("dump logcat to %s", path);
     logcatPid = fork();
     if (logcatPid == 0) {
-        execlp("logcat", "logcat", "-d", "-f", path, "*:V", NULL);
+        execlp("logcat", "logcat", "-d", "-v", "threadtime", "-f", path, "*:V", NULL);
         commandResult("logcat", logcatRequestId, -2);
     } else if (logcatPid < 0) {
         commandResult("logcat", logcatRequestId, -3);
