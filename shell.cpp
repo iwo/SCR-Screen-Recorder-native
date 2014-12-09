@@ -76,32 +76,46 @@ int main(int argc, char* argv[]) {
             } else {
                 ALOGE("no worker process to stop");
             }
-        } else if (strncmp(cmd, "logcat ", 7) == 0) {
-            ALOGV("%s", cmd);
-            runLogcat(cmd + 7);
-        } else if (strncmp(cmd, "mount_audio_master ", 19) == 0) {
-            ALOGV("soft-install audio async");
-            runMountMaster(argv[0], "mount_audio", cmd + 19);
-        } else if (strncmp(cmd, "mount_audio ", 12) == 0) {
-            ALOGV("soft-install audio");
-            commandResult(cmd, mountAudioHAL(cmd + 12));
-        } else if (strncmp(cmd, "unmount_audio_master ", 19) == 0) {
-            ALOGV("soft-uninstall audio async");
-            runMountMaster(argv[0], "unmount_audio", NULL);
-        } else if (strncmp(cmd, "unmount_audio", 13) == 0) {
-            ALOGV("soft-uninstall audio");
-            commandResult(cmd, unmountAudioHAL());
-        } else if (strncmp(cmd, "kill_kill ", 10) == 0) {
-            ALOGV("%s", cmd);
-            commandResult(cmd, killStrPid(cmd + 10, SIGKILL));
-        } else if (strncmp(cmd, "kill_term ", 10) == 0) {
-            ALOGV("%s", cmd);
-            commandResult(cmd, killStrPid(cmd + 10, SIGTERM));
-            ALOGV("%s", cmd);
         } else if (strncmp(cmd, "quit", 4) == 0) {
             break;
         } else {
-            ALOGE("unknown command %s", cmd);
+            // commands
+            int requestId;
+            int argsPos;
+
+            if (sscanf(cmd, "%*64s %d%*[ ]%n", &requestId, &argsPos) != 1) {
+                ALOGE("Error parsing command %s", cmd);
+                continue;
+            }
+
+            if (strncmp(cmd, "logcat ", 7) == 0) {
+                ALOGV("%s", cmd);
+                logcatRequestId = requestId;
+                runLogcat(cmd + argsPos);
+            } else if (strncmp(cmd, "mount_audio_master ", 19) == 0) {
+                ALOGV("soft-install audio async");
+                mountMasterRequestId = requestId;
+                runMountMaster(argv[0], "mount_audio", cmd + argsPos);
+            } else if (strncmp(cmd, "mount_audio ", 12) == 0) {
+                ALOGV("soft-install audio");
+                commandResult("mount_audio", requestId, mountAudioHAL(cmd + 12));
+            } else if (strncmp(cmd, "unmount_audio_master ", 21) == 0) {
+                ALOGV("soft-uninstall audio async");
+                mountMasterRequestId = requestId;
+                runMountMaster(argv[0], "unmount_audio", NULL);
+            } else if (strncmp(cmd, "unmount_audio", 13) == 0) {
+                ALOGV("soft-uninstall audio");
+                commandResult(cmd, requestId, unmountAudioHAL());
+            } else if (strncmp(cmd, "kill_kill ", 10) == 0) {
+                ALOGV("%s", cmd);
+                commandResult(cmd, requestId, killStrPid(cmd + argsPos, SIGKILL));
+            } else if (strncmp(cmd, "kill_term ", 10) == 0) {
+                ALOGV("%s", cmd);
+                commandResult(cmd, requestId, killStrPid(cmd + argsPos, SIGTERM));
+                ALOGV("%s", cmd);
+            } else {
+                ALOGE("unknown command %s", cmd);
+            }
         }
     }
 
@@ -169,7 +183,7 @@ void sigChldHandler(int param __unused) {
     } else if (pid == logcatPid) {
         logcatPid = -1;
         cmd = "logcat";
-        commandResult("logcat", exitValue);
+        commandResult("logcat", logcatRequestId, exitValue);
     } else if (pid == suPid) {
         suPid = -1;
         cmd = "su";
@@ -188,7 +202,7 @@ void sigChldHandler(int param __unused) {
         } else {
             cmd = "unmount_audio_master";
         }
-        commandResult(cmd, exitValue);
+        commandResult(cmd, mountMasterRequestId, exitValue);
     } else {
         ALOGE("unknown process exit %d", pid);
     }
@@ -204,9 +218,9 @@ void runLogcat(char *path) {
     logcatPid = fork();
     if (logcatPid == 0) {
         execlp("logcat", "logcat", "-d", "-f", path, "*:V", NULL);
-        commandResult("logcat", -2);
+        commandResult("logcat", logcatRequestId, -2);
     } else if (logcatPid < 0) {
-        commandResult("logcat", -3);
+        commandResult("logcat", logcatRequestId, -3);
     }
 }
 
@@ -215,9 +229,9 @@ void runMountMaster(const char *executable, const char *command, const char *bas
     mountMasterCmd = command;
     if (mountMasterPid == 0) {
         execlp("su", "su", "--mount-master", "--context", "u:r:init:s0", "-c", executable, command, basePath, NULL);
-        commandResult("mount_master", -2);
+        commandResult("mount_master", mountMasterRequestId, -2);
     } else if (mountMasterPid < 0) {
-        commandResult("mount_master", -3);
+        commandResult("mount_master", mountMasterRequestId, -3);
     }
 }
 
@@ -263,12 +277,12 @@ void shellSetError(int errorCode) {
     fflush(stdout);
 }
 
-inline void commandResult(const char *command, int result) {
+inline void commandResult(const char *command, int requestId, int result) {
     if (result == 0) {
         ALOGV("command result %s %d", command, result);
     } else {
         ALOGW("command result %s %d", command, result);
     }
-    printf("command result %d:%s\n", result, command);
+    printf("command result |%d|%d|%s\n", requestId, result, command);
     fflush(stdout);
 }

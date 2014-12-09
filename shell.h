@@ -27,10 +27,12 @@
 int selinuxEnforcing;
 pid_t workerPid = -1;
 pid_t logcatPid = -1;
+int logcatRequestId;
 pid_t suPid = -1;
 int suPipe[2];
 pid_t mountMasterPid = -1;
 const char *mountMasterCmd;
+int mountMasterRequestId;
 
 // shell methods
 void setupSELinux();
@@ -44,5 +46,5 @@ void commandForResult(const char *command, int exitValue);
 int killStrPid(const char *strPid, int sig);
 void getSuVersion();
 
-inline void commandResult(const char *command, int result);
+inline void commandResult(const char *command, int requestId, int result);
 #endif
