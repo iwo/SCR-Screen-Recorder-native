@@ -53,6 +53,7 @@ int main(int argc, char* argv[]) {
             workerPid = fork();
             if (workerPid == 0) {
                 // child
+                prctl(PR_SET_PDEATHSIG, SIGKILL);
                 signal(SIGCHLD, SIG_IGN);
                 shellSetState("STARTING");
                 return startRecording(cmd + 6);
