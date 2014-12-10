@@ -161,7 +161,8 @@ void sigPipeHandler(int param __unused) {
 void sigChldHandler(int param __unused) {
     int status, exitValue;
     const char *cmd = "unknown process";
-    pid_t pid = waitpid(-1, &status, 0);
+    ALOGV("waitpit"); //TODO: remove after we're sure that the app never hangs in this handler
+    pid_t pid = waitpid(-1, &status, WNOHANG);
 
     if (WIFEXITED(status)) {
         exitValue = WEXITSTATUS(status);
@@ -171,8 +172,10 @@ void sigChldHandler(int param __unused) {
         exitValue = -1;
     }
 
-    if (pid < 0) {
-        ALOGV("no child process info");
+    if (pid == 0) {
+        ALOGE("no child process found");
+    } else if (pid < 0) {
+        ALOGE("waitpid error");
     } else if (pid == workerPid) {
         workerPid = -1;
         cmd = "worker";
@@ -190,11 +193,15 @@ void sigChldHandler(int param __unused) {
         suPid = -1;
         cmd = "su";
         char suResult[128];
+        ALOGV("us read start"); //TODO: remove after we're sure that the app never hangs in this handler
         int resultSize = read(suPipe[0], suResult, 127);
         if (resultSize >= 0) {
             suResult[resultSize] = '\0';
+            ALOGV("su version %s", suResult);
             printf("su version %s\n", suResult);
             fflush(stdout);
+        } else {
+            ALOGE("no su version received");
         }
         close(suPipe[0]);
     } else if (pid == mountMasterPid) {
