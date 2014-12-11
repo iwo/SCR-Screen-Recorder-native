@@ -3,7 +3,6 @@
 int main(int argc, char* argv[]) {
     setupSELinux();
     signal(SIGPIPE, sigPipeHandler);
-    signal(SIGCHLD, sigChldHandler);
     set_sched_policy(0, SP_FOREGROUND);
     prctl(PR_SET_PDEATHSIG, SIGKILL);
 
@@ -25,23 +24,27 @@ int main(int argc, char* argv[]) {
         return ret;
     }
 
+    if (setupSigChldHandler() < 0) {
+        ALOGE("Error setting signal action");
+        restoreSELinux();
+        return 194;
+    }
+
     getSuVersion();
 
     //TODO: handle test mode
 
     shellSetState("READY");
-    char commandBuffer[MAX_COMMAND_LENGTH];
+
     workerPid = -1;
 
     while (true) {
-        ALOGV("#");
-        char* cmd = fgets(commandBuffer, MAX_COMMAND_LENGTH, stdin);
+
+        while (processZombie());
+
+        char *cmd = getNextCommand();
         if (cmd == NULL) {
-            //TODO: handle error
-            break;
-        }
-        if (strlen(cmd) > 0) {
-            cmd[strlen(cmd) - 1] = '\0'; // remove \n
+            continue;
         }
 
         if (strncmp(cmd, "start ", 6) == 0) {
@@ -60,13 +63,11 @@ int main(int argc, char* argv[]) {
             } else if (workerPid > 0) {
                 // parent
             } else {
-                // error
-                //TODO: report error
-                break;
+                shellSetError(192);
             }
         } else if (strncmp(cmd, "stop", 4) == 0) {
-            ALOGV("stop");
             if (workerPid > 0) {
+                shellSetState("STOPPING");
                 kill(workerPid, SIGINT);
             } else {
                 ALOGE("no worker process to stop");
@@ -153,15 +154,25 @@ void restoreSELinux() {
     #endif
 }
 
+int setupSigChldHandler() {
+    struct sigaction act;
+    memset(&act, '\0', sizeof(act));
+    act.sa_handler = &sigChldHandler;
+    act.sa_flags = SA_NOCLDSTOP; // SA_RESTART is not set so read() should not be restarted
+    return sigaction(SIGCHLD, &act, NULL);
+}
+
 void sigPipeHandler(int param __unused) {
-    ALOGE("SIGPIPE received");
+    restoreSELinux();
     exit(222);
 }
 
 void sigChldHandler(int param __unused) {
+}
+
+bool processZombie() {
     int status, exitValue;
     const char *cmd = "unknown process";
-    ALOGV("waitpit"); //TODO: remove after we're sure that the app never hangs in this handler
     pid_t pid = waitpid(-1, &status, WNOHANG);
 
     if (WIFEXITED(status)) {
@@ -172,10 +183,8 @@ void sigChldHandler(int param __unused) {
         exitValue = -1;
     }
 
-    if (pid == 0) {
-        ALOGE("no child process found");
-    } else if (pid < 0) {
-        ALOGE("waitpid error");
+    if (pid <= 0) {
+        return false;
     } else if (pid == workerPid) {
         workerPid = -1;
         cmd = "worker";
@@ -193,7 +202,6 @@ void sigChldHandler(int param __unused) {
         suPid = -1;
         cmd = "su";
         char suResult[128];
-        ALOGV("us read start"); //TODO: remove after we're sure that the app never hangs in this handler
         int resultSize = read(suPipe[0], suResult, 127);
         if (resultSize >= 0) {
             suResult[resultSize] = '\0';
@@ -220,6 +228,53 @@ void sigChldHandler(int param __unused) {
     } else {
         ALOGE("%s exit value: %d", cmd, exitValue);
     }
+    return true;
+}
+
+char *getNextCommand() {
+
+    // remove previous command from buffer
+    if (currentCmdBytes != 0) {
+        int i;
+        for (i = currentCmdBytes; i < cmdBufferFilled; i++) {
+            cmdBuffer[i - currentCmdBytes] = cmdBuffer[i];
+        }
+        cmdBufferFilled -= currentCmdBytes;
+        currentCmdBytes = 0;
+    }
+
+    if (readCommandFromBuffer() > 0) {
+        return cmdBuffer;
+    }
+
+    // wait for command or signal
+    int ret = read(STDIN_FILENO, cmdBuffer + cmdBufferFilled, MAX_COMMAND_LENGTH - cmdBufferFilled - 1);
+
+    if (ret == -1 && errno != EINTR) {
+        ALOGE("Error reading command %s", strerror(errno));
+        restoreSELinux();
+        exit(193);
+    } else if (ret > 0) {
+        cmdBufferFilled += ret;
+    }
+
+    if (readCommandFromBuffer() > 0) {
+        return cmdBuffer;
+    }
+    return NULL;
+}
+
+// update currentCmdBytes and return number of bytes read
+int readCommandFromBuffer() {
+    int i;
+    for (i = 0; i < cmdBufferFilled; i++) {
+        if (cmdBuffer[i] == '\n') {
+            cmdBuffer[i] = '\0';
+            currentCmdBytes = i + 1;
+            break;
+        }
+    }
+    return currentCmdBytes;
 }
 
 void runLogcat(char *path) {

@@ -34,10 +34,17 @@ pid_t mountMasterPid = -1;
 const char *mountMasterCmd;
 int mountMasterRequestId;
 
+char cmdBuffer[MAX_COMMAND_LENGTH];
+int cmdBufferFilled = 0;
+int currentCmdBytes = 0;
+
 // shell methods
 void setupSELinux();
 void restoreSELinux();
-
+char *getNextCommand();
+int readCommandFromBuffer();
+bool processZombie();
+int setupSigChldHandler();
 void sigPipeHandler(int param);
 void sigChldHandler(int param);
 void runLogcat(char *path);
