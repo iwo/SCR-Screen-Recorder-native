@@ -90,18 +90,19 @@ int main(int argc, char* argv[]) {
                 ALOGE("Error parsing command %s", cmd);
                 continue;
             }
+            char *args = cmd + argsPos;
 
             if (strncmp(cmd, "logcat ", 7) == 0) {
                 ALOGV("%s", cmd);
                 logcatRequestId = requestId;
-                runLogcat(cmd + argsPos);
+                runLogcat(args);
             } else if (strncmp(cmd, "mount_audio_master ", 19) == 0) {
                 ALOGV("soft-install audio async");
                 mountMasterRequestId = requestId;
-                runMountMaster(argv[0], "mount_audio", cmd + argsPos);
+                runMountMaster(argv[0], "mount_audio", args);
             } else if (strncmp(cmd, "mount_audio ", 12) == 0) {
                 ALOGV("soft-install audio");
-                commandResult("mount_audio", requestId, mountAudioHAL(cmd + 12));
+                commandResult("mount_audio", requestId, mountAudioHAL(args));
             } else if (strncmp(cmd, "unmount_audio_master ", 21) == 0) {
                 ALOGV("soft-uninstall audio async");
                 mountMasterRequestId = requestId;
@@ -111,10 +112,10 @@ int main(int argc, char* argv[]) {
                 commandResult(cmd, requestId, unmountAudioHAL());
             } else if (strncmp(cmd, "kill_kill ", 10) == 0) {
                 ALOGV("%s", cmd);
-                commandResult(cmd, requestId, killStrPid(cmd + argsPos, SIGKILL));
+                commandResult(cmd, requestId, killStrPid(args, SIGKILL));
             } else if (strncmp(cmd, "kill_term ", 10) == 0) {
                 ALOGV("%s", cmd);
-                commandResult(cmd, requestId, killStrPid(cmd + argsPos, SIGTERM));
+                commandResult(cmd, requestId, killStrPid(args, SIGTERM));
                 ALOGV("%s", cmd);
             } else {
                 ALOGE("unknown command %s", cmd);
