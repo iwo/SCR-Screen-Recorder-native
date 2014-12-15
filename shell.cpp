@@ -9,19 +9,19 @@ int main(int argc, char* argv[]) {
     if (argc == 2 && strncmp(argv[1], "unmount_audio", 13) == 0) {
         int ret = unmountAudioHAL();
         restoreSELinux();
-        return ret;
+        return ret == 0 ? 200 : ret;
     }
 
     if (argc == 3 && strncmp(argv[1], "mount_audio", 11) == 0) {
         int ret = mountAudioHAL(argv[2]);
         restoreSELinux();
-        return ret;
+        return ret == 0 ? 200 : ret;
     }
 
     if (argc == 2 && strncmp(argv[1], "umount", 6) == 0) {
         int ret = crashUnmountAudioHAL(NULL);
         restoreSELinux();
-        return ret;
+        return ret == 0 ? 200 : ret;
     }
 
     if (setupSigChldHandler() < 0) {
@@ -224,7 +224,7 @@ bool processZombie() {
     } else {
         ALOGE("unknown process exit %d", pid);
     }
-    if (exitValue == 0) {
+    if (exitValue == 0 || exitValue == 200) {
         ALOGV("%s finished", cmd);
     } else {
         ALOGE("%s exit value: %d", cmd, exitValue);
@@ -354,7 +354,7 @@ void shellSetError(int errorCode) {
 }
 
 inline void commandResult(const char *command, int requestId, int result) {
-    if (result == 0) {
+    if (result == 0 || result == 200) {
         ALOGV("command result %s %d", command, result);
     } else {
         ALOGW("command result %s %d", command, result);
