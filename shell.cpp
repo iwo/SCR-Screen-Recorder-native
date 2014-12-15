@@ -283,6 +283,8 @@ void runLogcat(char *path) {
     logcatPid = fork();
     if (logcatPid == 0) {
         execlp("logcat", "logcat", "-d", "-v", "threadtime", "-f", path, "*:V", NULL);
+        ALOGE("Error executing logcat from PATH");
+        execlp("/system/bin/logcat", "logcat", "-d", "-v", "threadtime", "-f", path, "*:V", NULL);
         commandResult("logcat", logcatRequestId, -2);
     } else if (logcatPid < 0) {
         commandResult("logcat", logcatRequestId, -3);
@@ -294,6 +296,11 @@ void runMountMaster(const char *executable, const char *command, const char *bas
     mountMasterCmd = command;
     if (mountMasterPid == 0) {
         execlp("su", "su", "--mount-master", "--context", "u:r:init:s0", "-c", executable, command, basePath, NULL);
+        ALOGE("Error executing su from PATH");
+        execlp("/system/xbin/su", "su", "--mount-master", "--context", "u:r:init:s0", "-c", executable, command, basePath, NULL);
+        ALOGE("Error executing /system/xbin/su from path");
+        execlp("/system/bin/su", "su", "--mount-master", "--context", "u:r:init:s0", "-c", executable, command, basePath, NULL);
+        ALOGE("Error executing /system/bin/su from path");
         commandResult("mount_master", mountMasterRequestId, -2);
     } else if (mountMasterPid < 0) {
         commandResult("mount_master", mountMasterRequestId, -3);
@@ -313,8 +320,12 @@ void getSuVersion() {
             exit(-1);
         }
         execlp("su", "su", "-v", NULL);
-        ALOGE("su exec failed");
-        exit(-1);
+        ALOGE("Error executing su from PATH");
+        execlp("/system/xbin/su", "su", "-v", NULL);
+        ALOGE("Error executing /system/xbin/su from path");
+        execlp("/system/bin/su", "su", "-v", NULL);
+        ALOGE("Error executing /system/bin/su from path");
+        exit(-2);
     } else if (suPid > 0) {
         close(suPipe[1]);
     } else {
