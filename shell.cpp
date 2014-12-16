@@ -202,17 +202,22 @@ bool processZombie() {
     } else if (pid == suPid) {
         suPid = -1;
         cmd = "su";
-        char suResult[128];
-        int resultSize = read(suPipe[0], suResult, 127);
-        if (resultSize >= 0) {
-            suResult[resultSize] = '\0';
-            ALOGV("su version %s", suResult);
-            printf("su version %s\n", suResult);
+        if (exitValue == 254) {
+            printf("su version exec_error\n");
             fflush(stdout);
         } else {
-            ALOGE("no su version received");
+            char suResult[128];
+            int resultSize = read(suPipe[0], suResult, 127);
+            if (resultSize >= 0) {
+                suResult[resultSize] = '\0';
+                ALOGV("su version %s", suResult);
+                printf("su version %s\n", suResult);
+                fflush(stdout);
+            } else {
+                ALOGE("no su version received");
+            }
+            close(suPipe[0]);
         }
-        close(suPipe[0]);
     } else if (pid == mountMasterPid) {
         mountMasterPid = -1;
         if (strcmp(mountMasterCmd, "mount_audio") == 0) {
@@ -283,9 +288,8 @@ void runLogcat(char *path) {
     logcatPid = fork();
     if (logcatPid == 0) {
         execlp("logcat", "logcat", "-d", "-v", "threadtime", "-f", path, "*:V", NULL);
-        ALOGE("Error executing logcat from PATH");
-        execlp("/system/bin/logcat", "logcat", "-d", "-v", "threadtime", "-f", path, "*:V", NULL);
-        commandResult("logcat", logcatRequestId, -2);
+        ALOGE("Error executing logcat: %s", strerror(errno));
+        commandResult("logcat", logcatRequestId, 254);
     } else if (logcatPid < 0) {
         commandResult("logcat", logcatRequestId, -3);
     }
@@ -296,12 +300,8 @@ void runMountMaster(const char *executable, const char *command, const char *bas
     mountMasterCmd = command;
     if (mountMasterPid == 0) {
         execlp("su", "su", "--mount-master", "--context", "u:r:init:s0", "-c", executable, command, basePath, NULL);
-        ALOGE("Error executing su from PATH");
-        execlp("/system/xbin/su", "su", "--mount-master", "--context", "u:r:init:s0", "-c", executable, command, basePath, NULL);
-        ALOGE("Error executing /system/xbin/su from path");
-        execlp("/system/bin/su", "su", "--mount-master", "--context", "u:r:init:s0", "-c", executable, command, basePath, NULL);
-        ALOGE("Error executing /system/bin/su from path");
-        commandResult("mount_master", mountMasterRequestId, -2);
+        ALOGE("Error executing su: %s", strerror(errno));
+        commandResult("mount_master", mountMasterRequestId, 254);
     } else if (mountMasterPid < 0) {
         commandResult("mount_master", mountMasterRequestId, -3);
     }
@@ -320,11 +320,7 @@ void getSuVersion() {
             exit(-1);
         }
         execlp("su", "su", "-v", NULL);
-        ALOGE("Error executing su from PATH");
-        execlp("/system/xbin/su", "su", "-v", NULL);
-        ALOGE("Error executing /system/xbin/su from path");
-        execlp("/system/bin/su", "su", "-v", NULL);
-        ALOGE("Error executing /system/bin/su from path");
+        ALOGE("Error executing su: %s", strerror(errno));
         exit(-2);
     } else if (suPid > 0) {
         close(suPipe[1]);
