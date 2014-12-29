@@ -1,7 +1,5 @@
 #include "audio_hal_installer.h"
 
-static const char *versionFilePath = "/system/lib/hw/scr_module_version";
-
 bool cmdMatch(int pid, const char *name) {
     char cmdline[1024];
     int fd, r;
@@ -118,6 +116,20 @@ bool removeFile(const char* path) {
     return true;
 }
 
+bool symlinkRwFiles(const char *baseDir) {
+    char confPath [1024];
+    char logPath [1024];
+    sprintf(confPath, "%.950s/scr_audio.conf", baseDir);
+    sprintf(logPath, "%.950s/scr_audio.log", baseDir);
+
+    ALOGV("Creating rw files symlinks");
+    if (symlink(confPath, "/system/lib/hw/scr_audio.conf") || symlink(logPath, "/system/lib/hw/scr_audio.log")) {
+        ALOGE("Error creating symlink %s", strerror(errno));
+        return false;
+    }
+    return true;
+}
+
 bool moveOriginalModules() {
     DIR *d;
     struct dirent *de;
@@ -221,47 +233,22 @@ void stopMediaServer() {
     }
 }
 
-void addVersionFile(int version) {
-    FILE *f = fopen(versionFilePath, "w");
-
-    if (f == NULL) {
-        ALOGE("Can't create version file");
-        return;
-    }
-
-    fprintf(f, "%d", version);
-    fflush(f);
-    fclose(f);
-    chmod(versionFilePath, 0644);
-}
-
-int installAudioHAL() {
+int installAudioHAL(const char *baseDir) {
     ALOGV("Installing SCR audio HAL\n");
-    char baseDir [1024];
     char modulePath [1024];
     char policyPath [1024];
 
-    if (fgets(baseDir, 1023, stdin) == NULL) {
-        ALOGE("No base directory specified");
-        return 173;
-    }
-    trim(baseDir);
-
     sprintf(modulePath, "%.950s/audio.primary.default.so", baseDir);
     sprintf(policyPath, "%.950s/audio_policy.conf", baseDir);
-
-    int version = 0;
-    char versionString [16];
-    if (fgets(versionString, 15, stdin) != NULL) {
-        version = atoi(versionString);
-    } else {
-        ALOGW("No driver version specified");
-    }
 
     ALOGV("Mounting system partition in read-write mode\n");
     if (mount(NULL, "/system", NULL, MS_REMOUNT, 0)) {
         ALOGE("Error mounting /system filesystem. error: %s\n", strerror(errno));
         return 167;
+    }
+
+    if (!symlinkRwFiles(baseDir)) {
+        return 173;
     }
 
     if (!moveOriginalModules()) {
@@ -302,8 +289,6 @@ int installAudioHAL() {
         return 172;
     }
 
-    addVersionFile(version);
-
     ALOGV("Installed!\n");
     return 0;
 }
@@ -317,12 +302,13 @@ int uninstallAudioHAL() {
         return 167;
     }
 
-    removeFile(versionFilePath);
-
     restoreOriginalModules();
 
     restoreAudioPolicyFile("/system/etc/audio_policy.conf.back", "/system/etc/audio_policy.conf");
     restoreAudioPolicyFile("/vendor/etc/audio_policy.conf.back", "/vendor/etc/audio_policy.conf");
+
+    removeFile("/system/lib/hw/scr_audio.log");
+    removeFile("/system/lib/hw/scr_audio.conf");
 
     stopMediaServer();
 

@@ -20,7 +20,7 @@
 
 #include <pwd.h>
 
-int installAudioHAL();
+int installAudioHAL(const char *baseDir);
 int uninstallAudioHAL();
 int mountAudioHAL(const char *baseDir);
 int unmountAudioHAL();

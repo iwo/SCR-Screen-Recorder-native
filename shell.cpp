@@ -113,6 +113,12 @@ int main(int argc, char* argv[]) {
             } else if (strncmp(cmd, "kill_kill ", 10) == 0) {
                 ALOGV("%s", cmd);
                 commandResult(cmd, requestId, killStrPid(args, SIGKILL));
+            } else if (strncmp(cmd, "install_audio ", 13) == 0) {
+                ALOGV("install_audio");
+                commandResult("install_audio", requestId, installAudioHAL(args));
+            } else if (strncmp(cmd, "uninstall_audio ", 15) == 0) {
+                ALOGV("%s", cmd);
+                commandResult(cmd, requestId, uninstallAudioHAL());
             } else if (strncmp(cmd, "kill_term ", 10) == 0) {
                 ALOGV("%s", cmd);
                 commandResult(cmd, requestId, killStrPid(args, SIGTERM));
