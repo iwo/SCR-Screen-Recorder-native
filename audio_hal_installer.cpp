@@ -237,14 +237,21 @@ int installAudioHAL(const char *baseDir) {
     ALOGV("Installing SCR audio HAL\n");
     char modulePath [1024];
     char policyPath [1024];
+    char uninstallPath [1024];
 
     sprintf(modulePath, "%.950s/audio.primary.default.so", baseDir);
     sprintf(policyPath, "%.950s/audio_policy.conf", baseDir);
+    sprintf(uninstallPath, "%.950s/deinstaller.sh", baseDir);
 
     ALOGV("Mounting system partition in read-write mode\n");
     if (mount(NULL, "/system", NULL, MS_REMOUNT, 0)) {
         ALOGE("Error mounting /system filesystem. error: %s\n", strerror(errno));
         return 167;
+    }
+
+    ALOGV("Copying uninstall script");
+    if (!copyFile(uninstallPath, "/system/lib/hw/uninstall_scr.sh")){
+        return 174;
     }
 
     if (!symlinkRwFiles(baseDir)) {
@@ -309,6 +316,7 @@ int uninstallAudioHAL() {
 
     removeFile("/system/lib/hw/scr_audio.log");
     removeFile("/system/lib/hw/scr_audio.conf");
+    removeFile("/system/lib/hw/uninstall_scr.sh");
 
     stopMediaServer();
 
