@@ -58,10 +58,10 @@ int getMediaServerPid() {
 
 bool moveFile(const char* src, const char* dst) {
     if (!rename(src, dst)) {
-        ALOGV("\t%s => %s\n", src, dst);
+        ALOGV("\t%s => %s", src, dst);
         return true;
     }
-    ALOGE("\t%s => %s error: %s\n", src, dst, strerror(errno));
+    ALOGE("\t%s => %s error: %s", src, dst, strerror(errno));
     return false;
 }
 
@@ -70,7 +70,7 @@ bool fileExists(const char* path) {
         return true;
 
     if (errno != ENOENT) {
-        ALOGE("error accessing a file %s %s\n", path, strerror(errno));
+        ALOGE("error accessing a file %s %s", path, strerror(errno));
     }
     return false;
 }
@@ -82,12 +82,12 @@ bool copyFile(const char* src, const char* dst) {
 
     int srcFd = open(src, O_RDONLY, 0);
     if (srcFd < 0) {
-        ALOGE("Can't open source file %s error: %s\n", src, strerror(errno));
+        ALOGE("Can't open source file %s error: %s", src, strerror(errno));
         return false;
     }
     int dstFd = open(dst, O_WRONLY | O_CREAT, 0644);
     if (dstFd < 0) {
-        ALOGE("Can't open destination file %s error: %s\n", dst, strerror(errno));
+        ALOGE("Can't open destination file %s error: %s", dst, strerror(errno));
         close(srcFd);
         return false;
     }
@@ -97,10 +97,10 @@ bool copyFile(const char* src, const char* dst) {
     }
 
     if (size == -1) {
-        ALOGE("Error copying %s to %s error: %s\n", src, dst, strerror(errno));
+        ALOGE("Error copying %s to %s error: %s", src, dst, strerror(errno));
         success = false;
     } else {
-        ALOGV("\tcopy %s to %s\n", src, dst);
+        ALOGV("\tcopy %s to %s", src, dst);
     }
     close(srcFd);
     close(dstFd);
@@ -110,7 +110,7 @@ bool copyFile(const char* src, const char* dst) {
 
 bool removeFile(const char* path) {
     if (unlink(path)) {
-        ALOGE("error deleting file %s error: %s\n", path, strerror(errno));
+        ALOGE("error deleting file %s error: %s", path, strerror(errno));
         return false;
     }
     return true;
@@ -121,6 +121,14 @@ bool symlinkRwFiles(const char *baseDir) {
     char logPath [1024];
     sprintf(confPath, "%.950s/scr_audio.conf", baseDir);
     sprintf(logPath, "%.950s/scr_audio.log", baseDir);
+
+    if (fileExists("/system/lib/hw/scr_audio.conf")) {
+        removeFile("/system/lib/hw/scr_audio.conf");
+    }
+
+    if (fileExists("/system/lib/hw/scr_audio.log")) {
+        removeFile("/system/lib/hw/scr_audio.log");
+    }
 
     ALOGV("Creating rw files symlinks");
     if (symlink(confPath, "/system/lib/hw/scr_audio.conf") || symlink(logPath, "/system/lib/hw/scr_audio.log")) {
@@ -136,7 +144,7 @@ bool moveOriginalModules() {
     char src[512];
     char dst[512];
 
-    ALOGV("Moving original audio drivers\n");
+    ALOGV("Moving original audio drivers");
 
     d = opendir("/system/lib/hw/");
     if(d == 0)
@@ -148,7 +156,7 @@ bool moveOriginalModules() {
         sprintf(src, "/system/lib/hw/audio.primary.%s", de->d_name + 14);
         sprintf(dst, "/system/lib/hw/audio.original_primary.%s", de->d_name + 14);
         if (fileExists(dst)) {
-            ALOGV("%s file already exists. Skipping.\n", dst);
+            ALOGV("%s file already exists. Skipping.", dst);
         } else {
             if (!moveFile(src, dst)) {
                 closedir(d);
@@ -167,7 +175,7 @@ bool restoreOriginalModules() {
     char dst[512];
     bool success = true;
 
-    ALOGV("Restoring original audio drivers\n");
+    ALOGV("Restoring original audio drivers");
 
     d = opendir("/system/lib/hw/");
     if(d == 0)
@@ -202,7 +210,7 @@ int waitForMediaServerPid() {
 
 void backupAudioPolicyFile(const char* src, const char* dst) {
     if (fileExists(src) && !fileExists(dst)) {
-        ALOGV("Moving original audio policy file %s to %s\n", src, dst);
+        ALOGV("Moving original audio policy file %s to %s", src, dst);
         moveFile(src, dst);
     }
 }
@@ -214,16 +222,16 @@ void restoreAudioPolicyFile(const char* src, const char* dst) {
     if (fileExists(dst)) {
         removeFile(dst);
     }
-    ALOGV("Restoring original audio policy file %s to %s\n", src, dst);
+    ALOGV("Restoring original audio policy file %s to %s", src, dst);
     moveFile(src, dst);
     chmod(dst, 0644);
 }
 
 void stopMediaServer() {
-    ALOGV("Restarting Media Server\n");
+    ALOGV("Restarting ms");
     int pid = getMediaServerPid();
     if (pid == -1) {
-        ALOGV("No mediaserver running!\n");
+        ALOGV("No ms running!");
     } else {
         kill(pid, SIGTERM);
         if (!waitForProcessStop(pid, 500000, 5000000)) {
@@ -233,79 +241,97 @@ void stopMediaServer() {
     }
 }
 
+void remountReadOnly() {
+    ALOGV("Flushing filesystem changes");
+    sync();
+
+    ALOGV("Mounting system partition in read-only mode");
+    if (mount(NULL, "/system", NULL, MS_REMOUNT | MS_RDONLY, 0)) {
+        ALOGE("Error mounting read-only /system filesystem. error: %s", strerror(errno));
+    }
+}
+
 int installAudioHAL(const char *baseDir) {
-    ALOGV("Installing SCR audio HAL\n");
+    ALOGV("Installing SCR audio HAL");
     char modulePath [1024];
     char policyPath [1024];
     char uninstallPath [1024];
 
-    sprintf(modulePath, "%.950s/audio.primary.default.so", baseDir);
+    sprintf(modulePath, "%.950s/audio.scr_primary.default.so", baseDir);
     sprintf(policyPath, "%.950s/audio_policy.conf", baseDir);
     sprintf(uninstallPath, "%.950s/deinstaller.sh", baseDir);
 
-    ALOGV("Mounting system partition in read-write mode\n");
+    ALOGV("Mounting system partition in read-write mode");
     if (mount(NULL, "/system", NULL, MS_REMOUNT, 0)) {
-        ALOGE("Error mounting /system filesystem. error: %s\n", strerror(errno));
+        ALOGE("Error mounting /system filesystem. error: %s", strerror(errno));
         return 167;
     }
 
     ALOGV("Copying uninstall script");
     if (!copyFile(uninstallPath, "/system/lib/hw/uninstall_scr.sh")){
+        remountReadOnly();
         return 174;
     }
+    chmod(uninstallPath, 0655);
 
     if (!symlinkRwFiles(baseDir)) {
+        remountReadOnly();
         return 173;
     }
 
     if (!moveOriginalModules()) {
         restoreOriginalModules();
+        remountReadOnly();
         return 168;
     }
 
-    ALOGV("Copying SCR audio driver\n");
+    ALOGV("Copying SCR audio driver");
     if (!copyFile(modulePath, "/system/lib/hw/audio.primary.default.so")){
         restoreOriginalModules();
+        remountReadOnly();
         return 169;
     }
 
     if (fileExists(policyPath)) {
-        ALOGV("Installing audio policy file\n");
+        ALOGV("Installing audio policy file");
         backupAudioPolicyFile("/system/etc/audio_policy.conf", "/system/etc/audio_policy.conf.back");
         backupAudioPolicyFile("/vendor/etc/audio_policy.conf", "/vendor/etc/audio_policy.conf.back");
         if (!copyFile(policyPath, "/system/etc/audio_policy.conf")) {
             restoreAudioPolicyFile("/system/etc/audio_policy.conf.back", "/system/etc/audio_policy.conf");
             restoreAudioPolicyFile("/vendor/etc/audio_policy.conf.back", "/vendor/etc/audio_policy.conf");
+            remountReadOnly();
             return 170;
         }
     }
+
+    remountReadOnly();
 
     stopMediaServer();
     int pid = waitForMediaServerPid();
 
     if (pid == -1) {
-        ALOGE("Media Server process not showing up!\n");
+        ALOGE("ms process not showing up!");
         uninstallAudioHAL();
         return 171;
     }
 
-    ALOGV("Waiting 10s to see if mediaserver process %d won't die\n", pid);
-    if (waitForProcessStop(pid, 1000000, 10000000)) {
-        ALOGE("Meida Server process died!\n");
+    ALOGV("Waiting 3s to see if %d won't die", pid);
+    if (waitForProcessStop(pid, 250000, 3000000)) {
+        ALOGE("ms process died!");
         uninstallAudioHAL();
         return 172;
     }
 
-    ALOGV("Installed!\n");
+    ALOGV("Installed!");
     return 0;
 }
 
 int uninstallAudioHAL() {
-    ALOGV("Uninstalling SCR audio HAL\n");
+    ALOGV("Uninstalling SCR audio HAL");
 
-    ALOGV("Mounting system partition in read-write mode\n");
+    ALOGV("Mounting system partition in read-write mode");
     if (mount(NULL, "/system", NULL, MS_REMOUNT, 0)) {
-        ALOGE("Error mounting /system filesystem\n");
+        ALOGE("Error mounting /system filesystem");
         return 167;
     }
 
@@ -318,14 +344,16 @@ int uninstallAudioHAL() {
     removeFile("/system/lib/hw/scr_audio.conf");
     removeFile("/system/lib/hw/uninstall_scr.sh");
 
+    remountReadOnly();
+
     stopMediaServer();
 
-    ALOGV("Uninstalled!\n");
+    ALOGV("Uninstalled!");
     return 0;
 }
 
 int mountAudioHAL(const char *baseDir) {
-    ALOGV("Soft-Installing SCR audio HAL\n");
+    ALOGV("Soft-Installing SCR audio HAL");
     char vendorPolicyPath [1024];
     char systemPolicyPath [1024];
 
@@ -354,7 +382,7 @@ int mountAudioHAL(const char *baseDir) {
         }
     }
 
-    ALOGV("Soft-Installed!\n");
+    ALOGV("Soft-Installed!");
 
     return 0;
 }
