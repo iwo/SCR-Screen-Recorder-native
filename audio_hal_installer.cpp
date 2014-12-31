@@ -241,13 +241,112 @@ void stopMediaServer() {
     }
 }
 
+bool isProcessWriting(int pid, dev_t device, const char *fd) {
+    char procFd[32];
+    sprintf(procFd, "/proc/%d/fd/%s", pid, fd);
+    struct stat st, lst;
+
+    if (stat(procFd, &st) != 0) {
+        ALOGE("Can't access %s : %s", procFd, strerror(errno));
+        return false;
+    }
+    if (lstat(procFd, &lst) != 0) {
+        ALOGE("Can't access link %s : %s", procFd, strerror(errno));
+        return false;
+    }
+    if (st.st_dev == device && (lst.st_mode & S_IWUSR)) {
+        char *path = realpath(procFd, NULL);
+        if (path == NULL) {
+            ALOGE("Error resolving path %s %s", procFd, strerror(errno));
+        } else {
+            ALOGW("%d writting to %s", pid, path);
+            free(path);
+        }
+        return true;
+    }
+    return false;
+}
+
+bool isProcessWriting(int pid, dev_t device) {
+    DIR *d;
+    struct dirent *de;
+    char procFd[32];
+
+    sprintf(procFd, "/proc/%d/fd", pid);
+
+    d = opendir(procFd);
+    if (d == 0) {
+        ALOGW("Error opening %s %s", procFd, strerror(errno));
+        return false;
+    }
+
+    while ((de = readdir(d)) != 0) {
+        if (isProcessWriting(pid, device, de->d_name)) {
+            closedir(d);
+            return true;
+        }
+    }
+    closedir(d);
+    return false;
+}
+
+int killWritingProcesses(const char *path) {
+    DIR *d;
+    struct dirent *de;
+    struct stat st;
+
+    if (stat(path, &st) != 0) {
+        ALOGE("Can't access %s : %s", path, strerror(errno));
+        return -1;
+    }
+
+    dev_t device = st.st_dev;
+
+    d = opendir("/proc");
+    if (d == 0)
+        return -1;
+
+    while ((de = readdir(d)) != 0) {
+        if (!isdigit(de->d_name[0]))
+            continue;
+        int pid = atoi(de->d_name);
+        if (isProcessWriting(pid, device)) {
+            if (pid == getpid()) {
+                ALOGE("We're still writing!");
+            } else {
+                char cmdline[1024];
+                int fd, r = 0;
+
+                sprintf(cmdline, "/proc/%d/cmdline", pid);
+                fd = open(cmdline, O_RDONLY);
+                if (fd != 0) {
+                    r = read(fd, cmdline, 1023);
+                    close(fd);
+                }
+                cmdline[r > 0 ? r : 0] = '\0';
+                ALOGW("Killing %d %s", pid, cmdline);
+                kill(pid, SIGKILL);
+            }
+        }
+    }
+    closedir(d);
+    return -1;
+}
+
 void remountReadOnly() {
     ALOGV("Flushing filesystem changes");
     sync();
 
     ALOGV("Mounting system partition in read-only mode");
     if (mount(NULL, "/system", NULL, MS_REMOUNT | MS_RDONLY, 0)) {
-        ALOGE("Error mounting read-only /system filesystem. error: %s", strerror(errno));
+        bool busy = (errno == EBUSY);
+        ALOGW("Error mounting read-only /system filesystem. error: %s", strerror(errno));
+        if (busy) {
+            killWritingProcesses("/system/");
+            if (mount(NULL, "/system", NULL, MS_REMOUNT | MS_RDONLY, 0)) {
+                ALOGE("Fatal error mounting read-only /system filesystem. error: %s", strerror(errno));
+            }
+        }
     }
 }
 
