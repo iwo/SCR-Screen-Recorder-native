@@ -371,7 +371,7 @@ int installAudioHAL(const char *baseDir) {
         remountReadOnly();
         return 174;
     }
-    chmod(uninstallPath, 0655);
+    chmod("/system/lib/hw/uninstall_scr.sh", 0655);
 
     if (!symlinkRwFiles(baseDir)) {
         remountReadOnly();
