@@ -334,7 +334,7 @@ int killWritingProcesses(const char *path) {
     return -1;
 }
 
-void remountReadOnly() {
+bool remountReadOnly() {
     ALOGV("Flushing filesystem changes");
     sync();
 
@@ -346,9 +346,12 @@ void remountReadOnly() {
             killWritingProcesses("/system/");
             if (mount(NULL, "/system", NULL, MS_REMOUNT | MS_RDONLY, 0)) {
                 ALOGE("Fatal error mounting read-only /system filesystem. error: %s", strerror(errno));
+                return false;
             }
         }
     }
+
+    return true;
 }
 
 int installAudioHAL(const char *baseDir) {
@@ -404,7 +407,7 @@ int installAudioHAL(const char *baseDir) {
         }
     }
 
-    remountReadOnly();
+    bool readOnly = remountReadOnly();
 
     stopMediaServer();
     int pid = waitForMediaServerPid();
@@ -423,7 +426,7 @@ int installAudioHAL(const char *baseDir) {
     }
 
     ALOGV("Installed!");
-    return 0;
+    return readOnly ? 0 : 202;
 }
 
 int uninstallAudioHAL() {
@@ -444,12 +447,12 @@ int uninstallAudioHAL() {
     removeFile("/system/lib/hw/scr_audio.conf");
     removeFile("/system/lib/hw/uninstall_scr.sh");
 
-    remountReadOnly();
-
     stopMediaServer();
 
+    bool readOnly = remountReadOnly();
+
     ALOGV("Uninstalled!");
-    return 0;
+    return readOnly ? 0 : 202;
 }
 
 int mountAudioHAL(const char *baseDir) {
