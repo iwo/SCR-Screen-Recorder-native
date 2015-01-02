@@ -365,7 +365,7 @@ int installAudioHAL(const char *baseDir) {
     sprintf(uninstallPath, "%.950s/deinstaller.sh", baseDir);
 
     ALOGV("Mounting system partition in read-write mode");
-    if (mount(NULL, "/system", NULL, MS_REMOUNT, 0)) {
+    if (mount(NULL, "/system", NULL, MS_REMOUNT | MS_NOATIME, 0)) {
         ALOGE("Error mounting /system filesystem. error: %s", strerror(errno));
         return 167;
     }
@@ -433,7 +433,7 @@ int uninstallAudioHAL() {
     ALOGV("Uninstalling SCR audio HAL");
 
     ALOGV("Mounting system partition in read-write mode");
-    if (mount(NULL, "/system", NULL, MS_REMOUNT, 0)) {
+    if (mount(NULL, "/system", NULL, MS_REMOUNT | MS_NOATIME, 0)) {
         ALOGE("Error mounting /system filesystem");
         return 167;
     }
