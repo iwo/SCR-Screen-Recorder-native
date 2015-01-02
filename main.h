@@ -21,6 +21,7 @@
 #include <stdlib.h>
 
 // write debugging
+#include <stdio.h>
 #include <sys/stat.h>
 #include <libgen.h>
 #include <dirent.h>

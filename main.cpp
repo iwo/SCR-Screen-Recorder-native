@@ -274,7 +274,7 @@ void checkChildrenWritePermission(const char *path) {
 
 void logFile(const char *path) {
     ALOGV("___________________________________________________________");
-    ALOGV(path);
+    ALOGV("%s", path);
 
     FILE *file;
     file = fopen(path, "r");
@@ -282,13 +282,12 @@ void logFile(const char *path) {
         char *line = NULL;
         size_t len = 0;
 
-        while (getline(&line, &len, file) != -1) {
+        while ((line = fgetln(file, &len)) != NULL) {
+            line[len - 1] = '\0'; // we expect \n at the end of file so this should be ok
             ALOGV("%s", line);
         }
 
         fclose(file);
-        if (line)
-            free(line);
     } else {
         ALOGE("Error opening file: %s", strerror(errno));
     }
