@@ -20,6 +20,11 @@
 #include <sys/prctl.h>
 #include <stdlib.h>
 
+// write debugging
+#include <sys/stat.h>
+#include <libgen.h>
+#include <dirent.h>
+
 #include <binder/ProcessState.h>
 
 // Configuration parameters
@@ -74,5 +79,6 @@ void waitForNextFrame();
 void sigIntHandler(int param __unused);
 void fixFilePermissions();
 const char* getThreadName();
+void debugWriteError();
 
 #endif

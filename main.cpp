@@ -169,6 +169,10 @@ void stop(int error, bool fromMainThread, const char* message) {
     }
     closeInput();
 
+    if (error == 201) {
+        debugWriteError();
+    }
+
     if (fromMainThread) {
         fixFilePermissions();
         ALOGV("exiting main thread");
@@ -208,3 +212,111 @@ int64_t getTimeMs() {
     clock_gettime(CLOCK_MONOTONIC, &now);
     return now.tv_sec * 1000l + now.tv_nsec / 1000000l;
 }
+
+void logPathPermissions(const char *path) {
+    struct stat s;
+    if (lstat(path, &s) == 0) {
+        if (S_ISLNK(s.st_mode)) {
+            char linkPath[1024];
+            ssize_t linkSize = readlink(path, linkPath, 1024);
+            if (linkSize < 0) {
+                ALOGW("%03o %4ld %4ld %s => broken link", s.st_mode & 0777, s.st_uid, s.st_gid, path);
+            } else {
+                linkPath[linkSize] = '\0';
+                ALOGW("%03o %4ld %4ld %s => %s", s.st_mode & 0777, s.st_uid, s.st_gid, path, linkPath);
+                logPathPermissions(linkPath);
+            }
+        } else {
+            ALOGW("%03o %4ld %4ld %s", s.st_mode & 0777, s.st_uid, s.st_gid, path);
+        }
+    } else {
+        ALOGW("Can't lstat %s %s", path, strerror(errno));
+    }
+}
+
+void checkWritePermission(const char *path) {
+    logPathPermissions(path);
+    char testPath[1024];
+    sprintf(testPath, "%s/scr_test.txt", path);
+    int fd = open(testPath, O_RDWR | O_CREAT, 0744);
+    if (fd >= 0) {
+        ALOGW("Write success %s", testPath);
+        close(fd);
+        unlink(testPath);
+    } else {
+        ALOGW("Write FAILURE %s", testPath);
+    }
+}
+
+void checkChildrenWritePermission(const char *path) {
+    ALOGV("___________________________________________________________");
+    logPathPermissions(path);
+
+    DIR *d;
+    struct dirent *de;
+
+    d = opendir(path);
+    if (d == 0) {
+        ALOGE("Can't list %s %s", path, strerror(errno));
+        return;
+    }
+
+    char childPath[1024];
+
+    while ((de = readdir(d)) != 0) {
+        if (de->d_name[0] == '.')
+            continue;
+        sprintf(childPath, "%s/%s", path, de->d_name);
+        checkWritePermission(childPath);
+    }
+    closedir(d);
+}
+
+void logFile(const char *path) {
+    ALOGV("___________________________________________________________");
+    ALOGV(path);
+
+    FILE *file;
+    file = fopen(path, "r");
+    if (file) {
+        char *line = NULL;
+        size_t len = 0;
+
+        while (getline(&line, &len, file) != -1) {
+            ALOGV("%s", line);
+        }
+
+        fclose(file);
+        if (line)
+            free(line);
+    } else {
+        ALOGE("Error opening file: %s", strerror(errno));
+    }
+
+    ALOGV("___________________________________________________________");
+}
+
+void debugWriteError() {
+    ALOGE("Error writting to %s", outputName);
+
+    char path[1024];
+    strncpy(path, outputName, 1024);
+
+    char *dir = path;
+    while (true) {
+        dir = dirname(dir);
+        if (strlen(dir) <= 1)
+            break;
+        checkWritePermission(dir);
+    }
+
+    ALOGV("___________________________________________________________");
+    checkWritePermission("/sdcard");
+    checkChildrenWritePermission("/mnt/media_rw");
+    checkChildrenWritePermission("/mnt/shell/emulated");
+    checkChildrenWritePermission("/storage");
+    checkChildrenWritePermission("/storage/emulated");
+
+    logFile("/proc/self/mounts");
+}
+
