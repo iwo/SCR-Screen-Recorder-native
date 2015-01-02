@@ -23,7 +23,6 @@ bool cmdMatch(int pid, const char *name) {
 int getProcessPid(const char *name) {
     DIR *d;
     struct dirent *de;
-    int pid = -1;
 
     d = opendir("/proc");
     if(d == 0)
@@ -32,12 +31,14 @@ int getProcessPid(const char *name) {
     while((de = readdir(d)) != 0){
         if (!isdigit(de->d_name[0]))
             continue;
-        pid = atoi(de->d_name);
-        if (pid != 0 && cmdMatch(pid, name))
-            break;
+        int pid = atoi(de->d_name);
+        if (pid != 0 && cmdMatch(pid, name)) {
+            closedir(d);
+            return pid;
+        }
     }
     closedir(d);
-    return pid > 0 ? pid : -1;
+    return -1;
 }
 
 bool waitForProcessStop(int pid, int waitTime, int maxWait) {
