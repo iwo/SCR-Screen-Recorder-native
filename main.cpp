@@ -220,17 +220,17 @@ void logPathPermissions(const char *path) {
             char linkPath[1024];
             ssize_t linkSize = readlink(path, linkPath, 1024);
             if (linkSize < 0) {
-                ALOGW("%03o %4ld %4ld %s => broken link", s.st_mode & 0777, s.st_uid, s.st_gid, path);
+                ALOGE("%03o %4ld %4ld %s => broken link", s.st_mode & 0777, s.st_uid, s.st_gid, path);
             } else {
                 linkPath[linkSize] = '\0';
-                ALOGW("%03o %4ld %4ld %s => %s", s.st_mode & 0777, s.st_uid, s.st_gid, path, linkPath);
+                ALOGE("%03o %4ld %4ld %s => %s", s.st_mode & 0777, s.st_uid, s.st_gid, path, linkPath);
                 logPathPermissions(linkPath);
             }
         } else {
-            ALOGW("%03o %4ld %4ld %s", s.st_mode & 0777, s.st_uid, s.st_gid, path);
+            ALOGE("%03o %4ld %4ld %s", s.st_mode & 0777, s.st_uid, s.st_gid, path);
         }
     } else {
-        ALOGW("Can't lstat %s %s", path, strerror(errno));
+        ALOGE("Can't lstat %s %s", path, strerror(errno));
     }
 }
 
@@ -240,16 +240,16 @@ void checkWritePermission(const char *path) {
     sprintf(testPath, "%s/scr_test.txt", path);
     int fd = open(testPath, O_RDWR | O_CREAT, 0744);
     if (fd >= 0) {
-        ALOGW("Write success %s", testPath);
+        ALOGE("Write success %s", testPath);
         close(fd);
         unlink(testPath);
     } else {
-        ALOGW("Write FAILURE %s", testPath);
+        ALOGE("Write FAILURE %s", testPath);
     }
 }
 
 void checkChildrenWritePermission(const char *path) {
-    ALOGV("___________________________________________________________");
+    ALOGE("___________________________________________________________");
     logPathPermissions(path);
 
     DIR *d;
@@ -273,8 +273,8 @@ void checkChildrenWritePermission(const char *path) {
 }
 
 void logFile(const char *path) {
-    ALOGV("___________________________________________________________");
-    ALOGV("%s", path);
+    ALOGE("___________________________________________________________");
+    ALOGE("%s", path);
 
     FILE *file;
     file = fopen(path, "r");
@@ -284,7 +284,7 @@ void logFile(const char *path) {
 
         while ((line = fgetln(file, &len)) != NULL) {
             line[len - 1] = '\0'; // we expect \n at the end of file so this should be ok
-            ALOGV("%s", line);
+            ALOGE("%s", line);
         }
 
         fclose(file);
@@ -292,7 +292,7 @@ void logFile(const char *path) {
         ALOGE("Error opening file: %s", strerror(errno));
     }
 
-    ALOGV("___________________________________________________________");
+    ALOGE("___________________________________________________________");
 }
 
 void debugWriteError() {
@@ -309,7 +309,7 @@ void debugWriteError() {
         checkWritePermission(dir);
     }
 
-    ALOGV("___________________________________________________________");
+    ALOGE("___________________________________________________________");
     checkWritePermission("/sdcard");
     checkChildrenWritePermission("/mnt/media_rw");
     checkChildrenWritePermission("/mnt/shell/emulated");
