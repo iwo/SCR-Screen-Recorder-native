@@ -14,6 +14,8 @@ int startRecording(char *config) {
     printf("rotateView %d verticalInput %d rotation %d\n", rotateView, inputHeight > inputWidth ? 1 : 0, rotation);
     fflush(stdout);
 
+    createOutputDir();
+
     if (videoEncoder >= 0) {
         if (useGl) {
             output = new GLMediaRecorderOutput();
@@ -177,6 +179,23 @@ void stop(int error, bool fromMainThread, const char* message) {
         fixFilePermissions();
         ALOGV("exiting main thread");
         exit(errorCode);
+    }
+}
+
+// usually this shouldn't be needed but on some Huawei devices the output directory is not present
+void createOutputDir() {
+    char path[1024];
+    struct stat st;
+    strncpy(path, outputName, 1024);
+    char *dir;
+
+    dir = dirname(path);
+
+    if (stat(dir, &st) != 0) {
+        ALOGE("Can't access output dir %s: %s", dir, strerror(errno));
+        if (mkdir(dir, 0777) < 0) {
+            ALOGE("Error creating output dir %s: %s", dir, strerror(errno));
+        }
     }
 }
 

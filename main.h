@@ -80,6 +80,6 @@ void waitForNextFrame();
 void sigIntHandler(int param __unused);
 void fixFilePermissions();
 const char* getThreadName();
+void createOutputDir();
 void debugWriteError();
-
 #endif
