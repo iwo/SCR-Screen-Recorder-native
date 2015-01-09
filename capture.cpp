@@ -48,16 +48,14 @@ void setupFb() {
 
     int bytespp = fbInfo.bits_per_pixel / 8;
 
-    size_t mapsize, size;
+    size_t mapsize;
     size_t offset = (fbInfo.xoffset + fbInfo.yoffset * fbInfo.xres) * bytespp;
     inputWidth = fbInfo.xres;
     inputHeight = fbInfo.yres;
     inputStride = inputWidth;
     ALOGV("FB width: %d hieght: %d bytespp: %d", inputWidth, inputHeight, bytespp);
 
-    size = inputWidth * inputHeight * bytespp;
-
-    mapsize = size * 4; // For triple buffering 3 should be enough, setting to 4 for padding
+    mapsize = inputStride * inputHeight * bytespp * 3; // triple buffering 3
     fbMapBase = mmap(0, mapsize, PROT_READ, MAP_SHARED, fbFd, 0);
     if (fbMapBase == MAP_FAILED) {
         ALOGE("mmap failed (size: %d) : %s", mapsize, strerror(errno));
