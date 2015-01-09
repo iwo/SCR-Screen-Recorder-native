@@ -140,7 +140,7 @@ void initializeTransformation(char *transformation) {
         useGl = true;
         useFb = true;
     } else {
-        stop(202, "incorrect transformation");
+        stop(196, "incorrect transformation");
     }
 }
 
