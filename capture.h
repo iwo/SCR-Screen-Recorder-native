@@ -38,6 +38,7 @@ bool rotateView;
 // input
 int fbFd = -1;
 struct fb_var_screeninfo fbInfo;
+struct fb_fix_screeninfo fbFixInfo;
 void const* fbMapBase = MAP_FAILED;
 ScreenshotClient *screenshot;
 #if SCR_SDK_VERSION >= 17

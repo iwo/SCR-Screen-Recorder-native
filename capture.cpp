@@ -46,19 +46,20 @@ void setupFb() {
         stop(203, "FB ioctl failed");
     }
 
-    int bytespp = fbInfo.bits_per_pixel / 8;
+    if (ioctl(fbFd, FBIOGET_FSCREENINFO, &fbFixInfo) != 0) {
+        stop(203, "FB ioctl fix failed");
+    }
 
-    size_t mapsize;
+    int bytespp = fbInfo.bits_per_pixel / 8;
     size_t offset = (fbInfo.xoffset + fbInfo.yoffset * fbInfo.xres) * bytespp;
     inputWidth = fbInfo.xres;
     inputHeight = fbInfo.yres;
-    inputStride = inputWidth;
-    ALOGV("FB width: %d hieght: %d bytespp: %d", inputWidth, inputHeight, bytespp);
+    inputStride = fbFixInfo.line_length / bytespp;
+    ALOGV("FB stride: %d width: %d hieght: %d bytespp: %d", inputStride, inputWidth, inputHeight, bytespp);
 
-    mapsize = inputStride * inputHeight * bytespp * 3; // triple buffering 3
-    fbMapBase = mmap(0, mapsize, PROT_READ, MAP_SHARED, fbFd, 0);
+    fbMapBase = mmap(0, fbFixInfo.smem_len, PROT_READ, MAP_SHARED, fbFd, 0);
     if (fbMapBase == MAP_FAILED) {
-        ALOGE("mmap failed (size: %d) : %s", mapsize, strerror(errno));
+        ALOGE("mmap failed (size: %d) : %s", fbFixInfo.smem_len, strerror(errno));
         stop(204, "mmap failed");
     }
     inputBase = (void const *)((char const *)fbMapBase + offset);
