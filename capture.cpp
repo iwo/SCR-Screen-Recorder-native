@@ -4,7 +4,36 @@
 using namespace android;
 
 void setupInput() {
-#ifdef SCR_FB
+    if (useFb) {
+        setupFb();
+    } else {
+        setupScreenshot();
+    }
+
+    if (allowVerticalFrames && inputWidth < inputHeight && (rotation == 0 || rotation == 180)) {
+        swapPadding();
+        videoWidth = inputWidth + 2 * paddingWidth;
+        videoHeight = inputHeight + 2 * paddingHeight;
+        rotateView = false;
+    } else if (allowVerticalFrames && inputWidth > inputHeight && (rotation == 90 || rotation == 270)) {
+        swapPadding();
+        videoWidth = inputHeight + 2 * paddingWidth;
+        videoHeight = inputWidth + 2 * paddingHeight;
+        rotateView = true;
+    } else {
+        if (inputWidth > inputHeight) {
+            videoWidth = inputWidth + 2 * paddingWidth;
+            videoHeight = inputHeight + 2 * paddingHeight;
+            rotateView = false;
+        } else {
+            videoWidth = inputHeight + 2 * paddingWidth;
+            videoHeight = inputWidth + 2 * paddingHeight;
+            rotateView = true;
+        }
+    }
+}
+
+void setupFb() {
     ALOGV("Setting up FB mmap");
     const char* fbpath = "/dev/graphics/fb0";
     fbFd = open(fbpath, O_RDONLY);
@@ -31,12 +60,15 @@ void setupInput() {
     mapsize = size * 4; // For triple buffering 3 should be enough, setting to 4 for padding
     fbMapBase = mmap(0, mapsize, PROT_READ, MAP_SHARED, fbFd, 0);
     if (fbMapBase == MAP_FAILED) {
+        ALOGE("mmap failed (size: %d) : %s", mapsize, strerror(errno));
         stop(204, "mmap failed");
     }
     inputBase = (void const *)((char const *)fbMapBase + offset);
-#else
+}
+
+void setupScreenshot() {
     screenshot = new ScreenshotClient();
-    #if SCR_SDK_VERSION >= 21
+#if SCR_SDK_VERSION >= 21
     display = SurfaceComposerClient::getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain);
     if (display == NULL) {
         stop(205, "Can't access display");
@@ -56,7 +88,7 @@ void setupInput() {
     if (screenshot->update() != NO_ERROR) {
         stop(217, "screenshot->update() failed");
     }
-    #endif // SCR_SDK_VERSION
+#endif // SCR_SDK_VERSION
 
     if ((screenshot->getWidth() < screenshot->getHeight()) != (reqWidth < reqHeight)) {
         ALOGI("swapping dimensions");
@@ -72,30 +104,6 @@ void setupInput() {
         screenshot->release();
     }
     ALOGV("Screenshot width: %d, height: %d, stride: %d, format %d, size: %d", inputWidth, inputHeight, inputStride, screenshot->getFormat(), screenshot->getSize());
-
-#endif // SCR_FB
-
-    if (allowVerticalFrames && inputWidth < inputHeight && (rotation == 0 || rotation == 180)) {
-        swapPadding();
-        videoWidth = inputWidth + 2 * paddingWidth;
-        videoHeight = inputHeight + 2 * paddingHeight;
-        rotateView = false;
-    } else if (allowVerticalFrames && inputWidth > inputHeight && (rotation == 90 || rotation == 270)) {
-        swapPadding();
-        videoWidth = inputHeight + 2 * paddingWidth;
-        videoHeight = inputWidth + 2 * paddingHeight;
-        rotateView = true;
-    } else {
-        if (inputWidth > inputHeight) {
-            videoWidth = inputWidth + 2 * paddingWidth;
-            videoHeight = inputHeight + 2 * paddingHeight;
-            rotateView = false;
-        } else {
-            videoWidth = inputHeight + 2 * paddingWidth;
-            videoHeight = inputWidth + 2 * paddingHeight;
-            rotateView = true;
-        }
-    }
 }
 
 void swapPadding() {
@@ -110,11 +118,20 @@ void adjustRotation() {
     }
 }
 
-
 void updateInput() {
     if (stopping)
         return;
-#ifdef SCR_FB
+
+    if (useFb) {
+        updateFb();
+    } else if (useOes) {
+        updateOes();
+    } else {
+        updateScreenshot();
+    }
+}
+
+void updateFb() {
     // it's still flickering, maybe ioctl(fd, FBIO_WAITFORVSYNC, &crt); would help
     if (ioctl(fbFd, FBIOGET_VSCREENINFO, &fbInfo) != 0) {
         stop(223, "FB ioctl failed");
@@ -122,48 +139,47 @@ void updateInput() {
     int bytespp = fbInfo.bits_per_pixel / 8;
     size_t offset = (fbInfo.xoffset + fbInfo.yoffset * fbInfo.xres) * bytespp;
     inputBase = (void const *)((char const *)fbMapBase + offset);
-#else
-
-    if (useOes) {
-        #if SCR_SDK_VERSION >= 21
-        if (glConsumer.get() == NULL) {
-            BufferQueue::createBufferQueue(&producer, &consumer);
-            glConsumer = new GLConsumer(consumer, 1, GLConsumer::TEXTURE_EXTERNAL, true, false);
-            ALOGV("Creating GLConsumer");
-        }
-        if (ScreenshotClient::capture(display, producer, Rect(0, 0), reqWidth, reqHeight, 0, -1, false) != NO_ERROR) {
-            stop(217, "capture failed");
-        }
-        #elif SCR_SDK_VERSION == 19
-        if (glConsumer.get() == NULL) {
-            bufferQueue = new BufferQueue();
-            glConsumer = new GLConsumer(bufferQueue, 1);
-            ALOGV("Creating GLConsumer");
-        }
-        if (ScreenshotClient::capture(display, bufferQueue, reqWidth, reqHeight, 0, -1) != NO_ERROR) {
-            stop(217, "capture failed");
-        }
-        #elif SCR_SDK_VERSION >= 18
-        if (glConsumer.get() != NULL) {
-            glConsumer.clear();
-        }
-        glConsumer = new GLConsumer(1);
-        glConsumer->setName(String8("scr_consumer"));
-             if (ScreenshotClient::capture(display, glConsumer->getBufferQueue(),
-                reqWidth, reqHeight, 0, -1) != NO_ERROR) {
-            stop(217, "capture failed");
-        }
-        #endif // SCR_SDK_VERSION
-    } else {
-        inputBase = NULL;
-        if (screenshotUpdate(reqWidth, reqHeight) == NO_ERROR) {
-            inputBase = screenshot->getPixels();
-        }
-    }
-#endif
 }
 
-#ifndef SCR_FB
+void updateOes() {
+    #if SCR_SDK_VERSION >= 21
+    if (glConsumer.get() == NULL) {
+        BufferQueue::createBufferQueue(&producer, &consumer);
+        glConsumer = new GLConsumer(consumer, 1, GLConsumer::TEXTURE_EXTERNAL, true, false);
+        ALOGV("Creating GLConsumer");
+    }
+    if (ScreenshotClient::capture(display, producer, Rect(0, 0), reqWidth, reqHeight, 0, -1, false) != NO_ERROR) {
+        stop(217, "capture failed");
+    }
+    #elif SCR_SDK_VERSION == 19
+    if (glConsumer.get() == NULL) {
+        bufferQueue = new BufferQueue();
+        glConsumer = new GLConsumer(bufferQueue, 1);
+        ALOGV("Creating GLConsumer");
+    }
+    if (ScreenshotClient::capture(display, bufferQueue, reqWidth, reqHeight, 0, -1) != NO_ERROR) {
+        stop(217, "capture failed");
+    }
+    #elif SCR_SDK_VERSION >= 18
+    if (glConsumer.get() != NULL) {
+        glConsumer.clear();
+    }
+    glConsumer = new GLConsumer(1);
+    glConsumer->setName(String8("scr_consumer"));
+         if (ScreenshotClient::capture(display, glConsumer->getBufferQueue(),
+            reqWidth, reqHeight, 0, -1) != NO_ERROR) {
+        stop(217, "capture failed");
+    }
+    #endif // SCR_SDK_VERSION
+}
+
+void updateScreenshot() {
+    inputBase = NULL;
+    if (screenshotUpdate(reqWidth, reqHeight) == NO_ERROR) {
+        inputBase = screenshot->getPixels();
+    }
+}
+
 status_t screenshotUpdate(int reqWidth, int reqHeight) {
     status_t err = NO_ERROR;
 
@@ -190,16 +206,19 @@ status_t screenshotUpdate(int reqWidth, int reqHeight) {
     }
     return err;
 }
-#endif // ndef SCR_FB
 
 void closeInput() {
-#ifdef SCR_FB
-    if (fbFd >= 0) {
-        close(fbFd);
-    fbFd = -1;
-    }
-#else
     ALOGV("Closing input");
+
+    if (useFb) {
+        if (fbFd >= 0) {
+            close(fbFd);
+            fbFd = -1;
+        }
+        ALOGV("Input closed.");
+        return;
+    }
+
     delete screenshot;
     #if SCR_SDK_VERSION >= 17
     if (display.get() != NULL) {
@@ -225,12 +244,11 @@ void closeInput() {
     }
     #endif // SCR_SDK_VERSION 19
     ALOGV("Input closed.");
-#endif // SCR_FB
 }
 
 
 void updateTexImage() {
-    #if SCR_SDK_VERSION >= 18 && !defined SCR_FB
+    #if SCR_SDK_VERSION >= 18
     if (useOes) {
         if (glConsumer->updateTexImage() != NO_ERROR) {
             if (!stopping) {

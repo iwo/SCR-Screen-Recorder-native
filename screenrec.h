@@ -18,11 +18,7 @@
 #define ALOGE(...) LOGE(__VA_ARGS__)
 #endif
 
-#ifdef SCR_FB
-#define FRAME_RATE 30
-#else
 #define FRAME_RATE 15
-#endif //SCR_FB
 
 // constants corresponding to AudioSource enum
 #define SCR_AUDIO_MUTE 'x'
@@ -42,6 +38,7 @@ extern int frameRate;
 extern bool restrictFrameRate;
 extern bool useGl;
 extern bool useOes;
+extern bool useFb;
 extern int videoBitrate;
 extern int audioSamplingRate;
 extern bool useBGRA;

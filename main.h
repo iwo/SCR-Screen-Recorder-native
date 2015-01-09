@@ -40,6 +40,7 @@ int frameRate = 0;
 bool restrictFrameRate = true;
 bool useGl = true;
 bool useOes = false;
+bool useFb = false;
 int videoBitrate;
 int audioSamplingRate;
 bool useBGRA = false;

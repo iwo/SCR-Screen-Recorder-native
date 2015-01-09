@@ -13,13 +13,9 @@
 #include <gui/SurfaceTextureClient.h>
 #endif
 
-#ifdef SCR_FB
-
 #include <linux/fb.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-
-#else
 
 #include <binder/IMemory.h>
 #if SCR_SDK_VERSION >= 16
@@ -28,7 +24,6 @@
 #else
 #include <surfaceflinger/SurfaceComposerClient.h>
 #endif // SCR_SDK_VERSION
-#endif //SCR_FB
 
 // allow up to 10 consecutive screenshot update errors before stopping
 #define MAX_UPDATE_ERRORS 10
@@ -41,11 +36,9 @@ int inputWidth, inputHeight, inputStride;
 bool rotateView;
 
 // input
-#ifdef SCR_FB
 int fbFd = -1;
 struct fb_var_screeninfo fbInfo;
 void const* fbMapBase = MAP_FAILED;
-#else
 ScreenshotClient *screenshot;
 #if SCR_SDK_VERSION >= 17
 sp<IBinder> display;
@@ -60,11 +53,14 @@ sp<BufferQueue> bufferQueue;
 sp<IGraphicBufferProducer> producer;
 sp<IGraphicBufferConsumer> consumer;
 #endif // SCR_SDK_VERSION 20
-#endif //SCR_FB
 
 int updateErrors = 0;
-
+void setupFb();
+void setupScreenshot();
 void swapPadding();
+void updateFb();
+void updateOes();
+void updateScreenshot();
 status_t screenshotUpdate(int reqWidth, int reqHeight);
 
 #endif

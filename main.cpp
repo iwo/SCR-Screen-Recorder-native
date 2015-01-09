@@ -118,18 +118,29 @@ void parseConfig(const char* config) {
 }
 
 void initializeTransformation(char *transformation) {
-    if (transformation[0] == 'C') { //CPU
+
+    if (strcmp(transformation, "CPU") == 0) {
         useGl = false;
-    } else if (transformation[0] == 'O') { //OES
+    } else if (strcmp(transformation, "GPU") == 0) {
+        useGl = true;
+    } else if (strcmp(transformation, "OES") == 0) {
         #if SCR_SDK_VERSION >= 18
         useOes = true;
         #endif
-    } else if (transformation[0] == 'S') { // YUV_SP
+    } else if (strcmp(transformation, "YUV_SP") == 0) {
         useGl = false;
         useYUV_SP = true;
-    } else if (transformation[0] == 'P') { // YUV_P
+    } else if (strcmp(transformation, "YUV_P") == 0) {
         useGl = false;
         useYUV_P = true;
+    } else if (strcmp(transformation, "FB_CPU") == 0) {
+        useGl = false;
+        useFb = true;
+    } else if (strcmp(transformation, "FB_GPU") == 0) {
+        useGl = true;
+        useFb = true;
+    } else {
+        stop(202, "incorrect transformation");
     }
 }
 
