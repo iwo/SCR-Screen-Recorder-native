@@ -262,10 +262,13 @@ char *getNextCommand() {
     // wait for command or signal
     int ret = read(STDIN_FILENO, cmdBuffer + cmdBufferFilled, MAX_COMMAND_LENGTH - cmdBufferFilled - 1);
 
-    if (ret == -1 && errno != EINTR) {
+    if (ret < 0 && errno != EINTR) {
         ALOGE("Error reading command %s", strerror(errno));
         restoreSELinux();
         exit(193);
+    } else if (ret == 0) {
+        ALOGW("controlling process killed");
+        exit(200);
     } else if (ret > 0) {
         cmdBufferFilled += ret;
     }
