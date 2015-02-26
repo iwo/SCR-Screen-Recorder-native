@@ -6,6 +6,9 @@ using namespace android;
 
 void AbstractMediaRecorderOutput::setupOutput() {
     outputFd = open(outputName, O_RDWR | O_CREAT, 0744);
+    if (outputFd < 0 && fixOutputName()) {
+        outputFd = open(outputName, O_RDWR | O_CREAT, 0744);
+    }
     if (outputFd < 0) {
         stop(201, "Could not open the output file");
     }

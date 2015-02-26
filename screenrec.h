@@ -75,6 +75,7 @@ void stop(int error, bool fromMainThread, const char* message);
 void closeInput();
 int64_t getTimeMs();
 void trim(char* str);
+bool fixOutputName();
 
 class ScrOutput {
 public:

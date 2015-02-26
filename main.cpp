@@ -243,6 +243,20 @@ int64_t getTimeMs() {
     return now.tv_sec * 1000l + now.tv_nsec / 1000000l;
 }
 
+bool fixOutputName() {
+    // replace /mnt/shell/emulated with /storage/emulated
+    // workaround for storage mapping bug on i_style_7_5
+    const char *prefixFrom = "/mnt/shell/emulated/";
+    const char *prefixTo = "/storage/emulated/";
+    char *newName = new char[strlen(outputName) - strlen(prefixFrom) + strlen(prefixTo) + 1];
+    if (strncmp(outputName, prefixFrom, strlen(prefixFrom)) != 0)
+        return false;
+    sprintf(newName, "%s%s", prefixTo, outputName + strlen("/mnt/shell/emulated/"));
+    outputName = newName;
+    ALOGW("Output changed to %s", outputName);
+    return true;
+}
+
 void logPathPermissions(const char *path) {
     struct stat s;
     if (lstat(path, &s) == 0) {

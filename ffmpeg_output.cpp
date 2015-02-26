@@ -166,6 +166,9 @@ void FFmpegOutput::setupAudioOutput() {
 void FFmpegOutput::setupOutputFile() {
     int ret;
     ret = avio_open(&oc->pb, outputName, AVIO_FLAG_WRITE);
+    if (ret < 0 && fixOutputName()) {
+        ret = avio_open(&oc->pb, outputName, AVIO_FLAG_WRITE);
+    }
     if (ret < 0) {
         stop(201, "Could not open the output file");
     }
