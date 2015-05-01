@@ -68,9 +68,6 @@ void AbstractMediaRecorderOutput::setupMediaRecorder() {
     if (videoBitrate > 0) {
         mr->setParameters(String8::format("video-param-encoding-bitrate=%d", videoBitrate));
     }
-    #ifdef SCR_FREE
-    mr->setParameters(String8::format("max-duration=200000"));
-    #endif
     setFileSizeLimit();
     mr->prepare();
 
