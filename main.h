@@ -43,6 +43,7 @@ bool useOes = false;
 bool useFb = false;
 int videoBitrate;
 int audioSamplingRate;
+int audioChannels = 1; //supported 1 or 2
 bool useBGRA = false;
 bool useYUV_P = false;
 bool useYUV_SP = false;

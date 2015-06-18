@@ -41,6 +41,7 @@ extern bool useOes;
 extern bool useFb;
 extern int videoBitrate;
 extern int audioSamplingRate;
+extern int audioChannels;
 extern bool useBGRA;
 extern bool useYUV_P;
 extern bool useYUV_SP;

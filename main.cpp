@@ -78,11 +78,11 @@ void parseConfig(const char* config) {
     char colorFormat[8];
     int vertical;
 
-    int scanned = sscanf(config, "%d %c %d %d %d %d %d %7s %7s %d %d %d %d",
+    int scanned = sscanf(config, "%d %c %d %d %d %d %d %7s %7s %d %d %d %d %d",
             &rotation, &audioSource, &reqWidth, &reqHeight, &paddingWidth, &paddingHeight, &frameRate, mode,
-            colorFormat, &videoBitrate, &audioSamplingRate, &videoEncoder, &vertical);
+            colorFormat, &videoBitrate, &audioSamplingRate, &audioChannels, &videoEncoder, &vertical);
 
-    if (scanned != 13) {
+    if (scanned != 14) {
         stop(195, true, "params parse error");
     }
 
@@ -113,8 +113,8 @@ void parseConfig(const char* config) {
         useOes = false;
     }
 
-    ALOGI("SETTINGS rotation: %d, audioSource: %c, resolution: %d x %d, padding: %d x %d, frameRate: %d, mode: %s, colorFix: %d, videoEncoder: %d, verticalFrames: %d",
-            rotation, audioSource, reqWidth, reqHeight, paddingWidth, paddingHeight, frameRate, useGl ? "GPU" : "CPU", useBGRA, videoEncoder, allowVerticalFrames);
+    ALOGI("SETTINGS rotation: %d, audioSource: %c, sampling: %d, channels: %d, resolution: %d x %d, padding: %d x %d, frameRate: %d, mode: %s, colorFix: %d, videoEncoder: %d, verticalFrames: %d",
+            rotation, audioSource, audioSamplingRate, audioChannels, reqWidth, reqHeight, paddingWidth, paddingHeight, frameRate, useGl ? "GPU" : "CPU", useBGRA, videoEncoder, allowVerticalFrames);
 }
 
 void initializeTransformation(char *transformation) {

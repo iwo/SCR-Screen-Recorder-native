@@ -136,9 +136,9 @@ void FFmpegOutput::setupAudioOutput() {
 
     AVCodecContext *c = audioStream->codec;
     c->sample_fmt  = AV_SAMPLE_FMT_FLTP;
-    c->bit_rate    = 64000;
+    c->bit_rate    = audioChannels * 64000;
     c->sample_rate = audioSamplingRate;
-    c->channels    = 1;
+    c->channels    = audioChannels;
     c->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
 
     /* Some formats want stream headers to be separate. */
@@ -189,7 +189,7 @@ void FFmpegOutput::startAudioInput() {
     audioRecord = new AudioRecord(AUDIO_SOURCE_MIC,
                         audioSamplingRate,
                         AUDIO_FORMAT_PCM_16_BIT,
-                        AUDIO_CHANNEL_IN_MONO,
+                        audioChannels == 2 ? AUDIO_CHANNEL_IN_STEREO : AUDIO_CHANNEL_IN_MONO,
                         0,
     #if SCR_SDK_VERSION < 17
                         (AudioRecord::record_flags) 0,
@@ -220,7 +220,7 @@ void FFmpegOutput::audioRecordCallback(int event, void *info) {
     AudioRecord::Buffer *buffer = (AudioRecord::Buffer*) info;
 
     pthread_mutex_lock(&inSamplesMutex);
-    for (unsigned int i = 0; i < buffer->frameCount; i++) {
+    for (unsigned int i = 0; i < buffer->frameCount * audioChannels; i++) {
         inSamples[inSamplesEnd++] = (float)buffer->i16[i] / 32769.0;
         inSamplesEnd %= inSamplesSize;
         if (inSamplesEnd == inSamplesStart) {
@@ -232,7 +232,7 @@ void FFmpegOutput::audioRecordCallback(int event, void *info) {
 }
 
 inline int FFmpegOutput::availableSamplesCount() {
-    return (inSamplesSize + inSamplesEnd - inSamplesStart) % inSamplesSize;
+    return ((inSamplesSize + inSamplesEnd - inSamplesStart) % inSamplesSize) / audioChannels;
 }
 
 void FFmpegOutput::getAudioFrame()
@@ -241,8 +241,13 @@ void FFmpegOutput::getAudioFrame()
 
     pthread_mutex_lock(&inSamplesMutex);
     while (samplesWritten < audioFrameSize && availableSamplesCount() > 0) {
-        outSamples[samplesWritten++] = inSamples[inSamplesStart++];
+        outSamples[samplesWritten] = inSamples[inSamplesStart++];
         inSamplesStart %= inSamplesSize;
+        if (audioChannels == 2) {
+            outSamples[audioFrameSize + samplesWritten] = inSamples[inSamplesStart++];
+            inSamplesStart %= inSamplesSize;
+        }
+        samplesWritten++;
     }
     pthread_mutex_unlock(&inSamplesMutex);
 }

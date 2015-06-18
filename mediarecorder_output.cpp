@@ -59,6 +59,7 @@ void AbstractMediaRecorderOutput::setupMediaRecorder() {
     if (audioSource != SCR_AUDIO_MUTE) {
         mr->setAudioEncoder(AUDIO_ENCODER_AAC);
         mr->setParameters(String8::format("audio-param-sampling-rate=%d", audioSamplingRate));
+        mr->setParameters(String8::format("audio-param-number-of-channels=%d", audioChannels));
         mr->setParameters(String8("audio-param-encoding-bitrate=128000"));
     }
     mr->setOutputFile(outputFd, 0, 0);
