@@ -209,21 +209,21 @@ int waitForMediaServerPid() {
     return pid;
 }
 
-void backupAudioPolicyFile(const char* src, const char* dst) {
+void backupConfigFile(const char* src, const char* dst) {
     if (fileExists(src) && !fileExists(dst)) {
-        ALOGV("Moving original audio policy file %s to %s", src, dst);
+        ALOGV("Moving original config file %s to %s", src, dst);
         moveFile(src, dst);
     }
 }
 
-void restoreAudioPolicyFile(const char* src, const char* dst) {
+void restoreConfigFile(const char* src, const char* dst) {
     if (!fileExists(src)) {
         return;
     }
     if (fileExists(dst)) {
         removeFile(dst);
     }
-    ALOGV("Restoring original audio policy file %s to %s", src, dst);
+    ALOGV("Restoring original config file %s to %s", src, dst);
     moveFile(src, dst);
     chmod(dst, 0644);
 }
@@ -358,10 +358,12 @@ int installAudioHAL(const char *baseDir) {
     ALOGV("Installing SCR audio HAL");
     char modulePath [1024];
     char policyPath [1024];
+    char mediaProfilesPath [1024];
     char uninstallPath [1024];
 
     sprintf(modulePath, "%.950s/audio.scr_primary.default.so", baseDir);
-    sprintf(policyPath, "%.950s/audio_policy.conf", baseDir);
+    sprintf(policyPath, "%.950s/scr_audio_policy.conf", baseDir);
+    sprintf(mediaProfilesPath, "%.950s/scr_media_profiles.xml", baseDir);
     sprintf(uninstallPath, "%.950s/deinstaller.sh", baseDir);
 
     ALOGV("Mounting system partition in read-write mode");
@@ -397,13 +399,25 @@ int installAudioHAL(const char *baseDir) {
 
     if (fileExists(policyPath)) {
         ALOGV("Installing audio policy file");
-        backupAudioPolicyFile("/system/etc/audio_policy.conf", "/system/etc/audio_policy.conf.back");
-        backupAudioPolicyFile("/vendor/etc/audio_policy.conf", "/vendor/etc/audio_policy.conf.back");
+        backupConfigFile("/system/etc/audio_policy.conf", "/system/etc/audio_policy.conf.back");
+        backupConfigFile("/vendor/etc/audio_policy.conf", "/vendor/etc/audio_policy.conf.back");
         if (!copyFile(policyPath, "/system/etc/audio_policy.conf")) {
-            restoreAudioPolicyFile("/system/etc/audio_policy.conf.back", "/system/etc/audio_policy.conf");
-            restoreAudioPolicyFile("/vendor/etc/audio_policy.conf.back", "/vendor/etc/audio_policy.conf");
+            restoreConfigFile("/system/etc/audio_policy.conf.back", "/system/etc/audio_policy.conf");
+            restoreConfigFile("/vendor/etc/audio_policy.conf.back", "/vendor/etc/audio_policy.conf");
             remountReadOnly();
             return 170;
+        }
+    }
+
+    if (fileExists(mediaProfilesPath)) {
+        ALOGV("Installing media profiles file");
+        backupConfigFile("/system/etc/media_profiles.xml", "/system/etc/media_profiles.xml.back");
+        if (!copyFile(mediaProfilesPath, "/system/etc/media_profiles.xml")) {
+            restoreConfigFile("/system/etc/audio_policy.conf.back", "/system/etc/audio_policy.conf");
+            restoreConfigFile("/vendor/etc/audio_policy.conf.back", "/vendor/etc/audio_policy.conf");
+            restoreConfigFile("/system/etc/media_profiles.xml.back", "/system/etc/media_profiles.xml");
+            remountReadOnly();
+            return 177;
         }
     }
 
@@ -440,8 +454,9 @@ int uninstallAudioHAL() {
 
     restoreOriginalModules();
 
-    restoreAudioPolicyFile("/system/etc/audio_policy.conf.back", "/system/etc/audio_policy.conf");
-    restoreAudioPolicyFile("/vendor/etc/audio_policy.conf.back", "/vendor/etc/audio_policy.conf");
+    restoreConfigFile("/system/etc/audio_policy.conf.back", "/system/etc/audio_policy.conf");
+    restoreConfigFile("/vendor/etc/audio_policy.conf.back", "/vendor/etc/audio_policy.conf");
+    restoreConfigFile("/system/etc/media_profiles.xml.back", "/system/etc/media_profiles.xml");
 
     removeFile("/system/lib/hw/scr_audio.log");
     removeFile("/system/lib/hw/scr_audio.conf");
@@ -459,9 +474,11 @@ int mountAudioHAL(const char *baseDir) {
     ALOGV("Soft-Installing SCR audio HAL");
     char vendorPolicyPath [1024];
     char systemPolicyPath [1024];
+    char mediaProfilesPath [1024];
 
     sprintf(vendorPolicyPath, "%.950s/vendor_audio_policy.conf", baseDir);
     sprintf(systemPolicyPath, "%.950s/system_audio_policy.conf", baseDir);
+    sprintf(mediaProfilesPath, "%.950s/media_profiles.xml", baseDir);
 
     ALOGV("Linking modules dir");
     if (mount(baseDir, "/system/lib/hw", NULL, MS_BIND, 0)) {
@@ -485,6 +502,14 @@ int mountAudioHAL(const char *baseDir) {
         }
     }
 
+    if (fileExists("/system/etc/media_profiles.xml") && fileExists(mediaProfilesPath)) {
+        ALOGV("Linking media profiles file");
+        if (mount(mediaProfilesPath, "/system/etc/media_profiles.xml", NULL, MS_BIND, 0)) {
+            ALOGE("Error linking media profiles file. error: %s", strerror(errno));
+            return 178;
+        }
+    }
+
     ALOGV("Soft-Installed!");
 
     return 0;
@@ -502,6 +527,7 @@ int unmountAudioHAL() {
     if (fileExists("/vendor/etc/audio_policy.conf")) {
         forceUnmount("/vendor/etc/audio_policy.conf");
     }
+    forceUnmount("/system/etc/media_profiles.xml");
     return 0;
 }
 
