@@ -40,7 +40,11 @@ void AbstractMediaRecorderOutput::checkAudioSource(audio_source_t source) {
 
 // Set up the MediaRecorder which runs in the same process as mediaserver
 void AbstractMediaRecorderOutput::setupMediaRecorder() {
+    #if SCR_SDK_VERSION >= 23
+    mr = new MediaRecorder(String16("com.iwobanas.screenrecorder.pro"));
+    #else
     mr = new MediaRecorder();
+    #endif
     if (mr->initCheck() != NO_ERROR) {
         stop(231, "Error starting MediaRecorder");
     }

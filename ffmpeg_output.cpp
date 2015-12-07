@@ -190,6 +190,9 @@ void FFmpegOutput::startAudioInput() {
                         audioSamplingRate,
                         AUDIO_FORMAT_PCM_16_BIT,
                         audioChannels == 2 ? AUDIO_CHANNEL_IN_STEREO : AUDIO_CHANNEL_IN_MONO,
+    #if SCR_SDK_VERSION >= 23
+                        String16("com.iwobanas.screenrecorder.pro"),
+    #endif // SCR_SDK_VERSION >= 23
                         0,
     #if SCR_SDK_VERSION < 17
                         (AudioRecord::record_flags) 0,
